@@ -8,7 +8,7 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 
 - InfluxDB: 
 	- [Install InfluxDB](https://docs.influxdata.com/influxdb/v1.1/introduction/installation/)
-	- [Create database ZABBIX](https://docs.influxdata.com/influxdb/v1.1/introduction/getting_started/) <br />
+	- [Create a database with a retention period ](https://docs.influxdata.com/influxdb/v1.1/introduction/getting_started/) <br />
 - Grafana:
 	- [Install Grafana](http://docs.grafana.org/installation/)
 - influxdb-zabbix:
