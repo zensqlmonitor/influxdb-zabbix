@@ -417,10 +417,7 @@ func (p *Param) gatherData() error {
 			tlen = len(prettyTableName)
 
 			log.Info(fmt.Sprintf("--> Load    | %s| %v rows | took %s",
-				rightPad(
-					prettyTableName,
-					" ",
-					20-tlen),
+				prettyTableName,
 				len(datapart),
 				time.Since(start)))
 
