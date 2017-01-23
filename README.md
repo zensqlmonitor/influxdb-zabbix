@@ -31,9 +31,8 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
   - history
   - history_uint
   - trends
-  - trends_uint. 
-  
-Other tables like history_log, _text and _str are not replicated.
+  - trends_uint
+- Tables like history_log, _text and _str are not replicated.
 - You can configure a different interval for each table.
 
 ## License
