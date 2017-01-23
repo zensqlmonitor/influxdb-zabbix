@@ -16,6 +16,16 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 	- [Setup you GOPATH](https://golang.org/doc/code.html#GOPATH)
 	- Run ``` go get github.com/zensqlmonitor/influxdb-zabbix ```
 	- Edit the configuration to match your needs  <br />	
+- PostgreSQL:
+```SQL 
+CREATE USER influxdb_zabbix WITH PASSWORD '***';
+GRANT USAGE ON SCHEMA public TO influxdb_zabbix;
+```
+At the database level:
+```SQL 
+GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
+GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
+```
 
 ### How to use GO code
 
@@ -23,6 +33,10 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 - Build in the current directory: ``` go build influxdb-zabbix.go ```
 - Install in $GOPATH/bin: ``` go install influxdb-zabbix.go ```
 
+### Dependencies
+- Go 1.7
+- TOML parser (https://github.com/BurntSushi/toml)
+- Pure Go Postgres driver for database/sql (https://github.com/lib/pq/)
 
 ## Notes on configuration
 
