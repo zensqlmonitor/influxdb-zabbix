@@ -5,20 +5,41 @@ import (
 	"strings"
 	"strconv"
 	"time"
-  "github.com/zensqlmonitor/influxdb-zabbix/input"
+        "github.com/influxdb-zabbix/input"
+        //"fmt"
   
 	_"github.com/lib/pq"
 )
 
+///
+/// utils
+///
+const (
+	millisPerSecond     = int64(time.Second / time.Millisecond)
+	nanosPerMillisecond = int64(time.Millisecond / time.Nanosecond)
+)
+
+func msToTime(ms string) (time.Time, error) {
+	msInt, err := strconv.ParseInt(ms, 10, 64)
+	if err != nil {
+		   return time.Time{}, err
+	}
+	return time.Unix(msInt/millisPerSecond,
+	  (msInt%millisPerSecond)*nanosPerMillisecond), nil
+}
+
+///
+/// main methods
+///
 type Input input.Input
 
-
-
-func NewExtracter(address string, tablename string, startdate string) Input {
+func NewExtracter(address string, tablename string, intputrowsperbatch int, startdate time.Time, enddate time.Time) Input {
     i := Input{}
     i.Address = address
     i.Tablename = tablename
+    i.Rowsperbatch = intputrowsperbatch
     i.Startdate = startdate
+    i.Enddate = enddate
     return i
 }
 
@@ -33,35 +54,20 @@ func (i *Input) Extract() error {
 		return err
 	}
 	defer conn.Close()
-
-
-	startdateEpoch := time.Now() 
-  
-	if len(i.Startdate) > 0 {
-		startdateEpoch, err = time.Parse("2006-01-02T15:04:05", i.Startdate)
-		if err != nil {
-			startdateEpoch, err = time.Parse(time.RFC3339, i.Startdate)
-      		if err != nil {
-           return err
-      }
-		}
-	} 
-
-	// EndDate it the time just before executing query
-	t := time.Now()
-	i.Enddate = t.Format(time.RFC3339)	
 	
 	query := strings.Replace(
+            strings.Replace(
              strings.Replace(
                 queries[i.Tablename], 
-                "##STARTDATE##", strconv.FormatInt(startdateEpoch.Unix(), 10), -1),
-                "##ENDDATE##", strconv.FormatInt(t.Unix(), 10), -1)
-	// log.Trace(
-	// 		fmt.Sprintf(
-	// 			"------ Query used for %s: %s",
-  //       i.tablename,
-	// 			query))
-        
+                "##STARTDATE##", strconv.FormatInt(i.Startdate.Unix(), 10), -1),
+                "##ENDDATE##", strconv.FormatInt(i.Enddate.Unix(), 10), -1),
+                "##ROWSPERBATCH##", strconv.Itoa(i.Rowsperbatch), -1)
+  // fmt.Println(
+	//  		fmt.Sprintf(
+	//  			"------ Query used for %s: %s",
+  //        i.Tablename,
+	//  			query))
+    
 	rows, err := conn.Query(query)
 	if err != nil {
 		return err
@@ -69,19 +75,33 @@ func (i *Input) Extract() error {
 	defer rows.Close()
 
 	// fetch result
-    resultTmp := []string{}
+  resulttmp := []string{}
+  var clock string
+  
 	for rows.Next() {
 		var result string
-		if err := rows.Scan(&result); err != nil {
+		if err := rows.Scan(&result, &clock); err != nil {
 			return err
 		}
-		resultTmp = append(resultTmp, result)
+		resulttmp= append(resulttmp, result)
 	}
-	i.Result = resultTmp
 
 	if err := rows.Err(); err != nil {
 		return err
 	}
+
+  rows.Close()
+
+	i.Result = resulttmp
+  
+  // last clock will be the start date for the next run
+  if len(clock) > 0 {
+      lastclock, err := msToTime(strings.Trim(clock, " "))
+    if err != nil {
+      return err
+    }
+    i.Startdate = lastclock
+  }  
 
 	return nil
 }
@@ -94,17 +114,13 @@ var queries MapQuery
 
 func init() {
 	queries = make(MapQuery)
-	queries["compareSize"] = sqlCompare
 	queries["history"] = sqlHistory
 	queries["history_uint"] = sqlHistoryUInt
-	queries["history_log"] = sqlHistoryLog
 	queries["trends"] = sqlTrends
 	queries["trends_uint"] = sqlTrendsUInt
 }
 
 const sqlOne string = `SELECT 1;`
-
-const sqlCompare string = `SELECT result FROM public.trends_influxdb`
 
 const sqlTrends string = `SELECT 
 -- measurement
@@ -122,15 +138,16 @@ replace(replace(CASE
 -- tags
 || ',host_name=' || replace(hos.name, ' ', '\ ')
 || ',group_name=' || replace(grp.name, ' ', '\ ')
-|| ',applications=' || replace((SELECT string_agg(app.name, ' | ')
+|| ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ ')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
 || ' value_min=' || CAST(tre.value_min as varchar(32))
 || ',value_avg=' || CAST(tre.value_avg as varchar(32))
 || ',value_max=' || CAST(tre.value_max as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char(14)) as result
+,  CAST((tre.clock * 1000.) as char(14)) as clock
 FROM public.trends tre
 INNER JOIN public.items ite on ite.itemid = tre.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -138,7 +155,9 @@ INNER JOIN public.hosts_groups hg on hg.hostid = hos.hostid
 INNER JOIN public.groups grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND tre.clock > ##STARTDATE##
-   AND tre.clock <= ##ENDDATE##;
+   AND tre.clock <= ##ENDDATE##
+ORDER BY tre.clock ASC, tre.itemid ASC
+LIMIT ##ROWSPERBATCH##;
 `
 const sqlTrendsUInt string = `SELECT 
 -- measurement
@@ -151,20 +170,25 @@ replace(replace(CASE
        THEN replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1))
     WHEN (position('$2' in ite.name) > 0) 
        THEN replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
+    WHEN (position('$3' in ite.name) > 0)
+       THEN replace(ite.name, '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
+    WHEN (position('$1' in ite.name) > 0) AND (position('$3' in ite.name) > 0)
+       THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
     ELSE ite.name
   END, ',', ''), ' ', '\ ') 
 -- tags
 || ',host_name=' || replace(hos.name, ' ', '\ ')
 || ',group_name=' || replace(grp.name, ' ', '\ ')
-|| ',applications=' || replace((SELECT string_agg(app.name, ' | ')
+|| ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ ')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
 || ' value_min=' || CAST(tre.value_min as varchar(32))
 || ',value_avg=' || CAST(tre.value_avg as varchar(32))
 || ',value_max=' || CAST(tre.value_max as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char(14)) as result
+,  CAST((tre.clock * 1000.) as char(14)) as clock
 FROM public.trends_uint tre
 INNER JOIN public.items ite on ite.itemid = tre.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -172,7 +196,9 @@ INNER JOIN public.hosts_groups hg on hg.hostid = hos.hostid
 INNER JOIN public.groups grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND tre.clock > ##STARTDATE##
-   AND tre.clock <= ##ENDDATE##;
+   AND tre.clock <= ##ENDDATE##
+ORDER BY tre.clock ASC, tre.itemid ASC
+LIMIT ##ROWSPERBATCH##;
 `
 
 const sqlHistory string = `SELECT 
@@ -186,18 +212,23 @@ replace(replace(CASE
        THEN replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1))
     WHEN (position('$2' in ite.name) > 0) 
        THEN replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
+    WHEN (position('$3' in ite.name) > 0)
+       THEN replace(ite.name, '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
+    WHEN (position('$1' in ite.name) > 0) AND (position('$3' in ite.name) > 0)
+       THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
     ELSE ite.name
   END, ',', ''), ' ', '\ ') 
 -- tags
 || ',host_name=' || replace(hos.name, ' ', '\ ')
 || ',group_name=' || replace(grp.name, ' ', '\ ')
-|| ',applications=' || replace((SELECT string_agg(app.name, ' | ')
+|| ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ ')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as result
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
 FROM public.history his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -205,7 +236,9 @@ INNER JOIN public.hosts_groups hg on hg.hostid = hos.hostid
 INNER JOIN public.groups grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND his.clock > ##STARTDATE##
-   AND his.clock <= ##ENDDATE##;
+   AND his.clock <= ##ENDDATE##
+ORDER BY his.clock ASC, his.ns ASC, his.itemid ASC
+LIMIT ##ROWSPERBATCH##;
 `
 
 const sqlHistoryUInt string = `SELECT 
@@ -217,20 +250,25 @@ replace(replace(CASE
       THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
     WHEN (position('$1' in ite.name) > 0) 
        THEN replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1))
-	WHEN (position('$2' in ite.name) > 0) 
+	  WHEN (position('$2' in ite.name) > 0) 
        THEN replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
+    WHEN (position('$3' in ite.name) > 0)
+       THEN replace(ite.name, '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
+    WHEN (position('$1' in ite.name) > 0) AND (position('$3' in ite.name) > 0)
+       THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
     ELSE ite.name
   END, ',', ''), ' ', '\ ') 
 -- tags
 || ',host_name=' || replace(hos.name, ' ', '\ ')
 || ',group_name=' || replace(grp.name, ' ', '\ ')
-|| ',applications=' || replace((SELECT string_agg(app.name, ' | ')
+|| ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ ')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as result
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
 FROM public.history_uint his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -238,38 +276,7 @@ INNER JOIN public.hosts_groups hg on hg.hostid = hos.hostid
 INNER JOIN public.groups grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND his.clock > ##STARTDATE##
-   AND his.clock <= ##ENDDATE##;
-`
-
-const sqlHistoryLog string = `SELECT 
--- measurement
-replace(replace(CASE
-    WHEN (position('$2' in ite.name) > 0) AND (position('$4' in ite.name) > 0) 
-      THEN replace(replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2)), '$4', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 4))
-    WHEN (position('$1' in ite.name) > 0) AND (position('$2' in ite.name) > 0) 
-      THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
-    WHEN (position('$1' in ite.name) > 0) 
-       THEN replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1))
-    WHEN (position('$2' in ite.name) > 0) 
-       THEN replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
-    ELSE ite.name
-  END, ',', ''), ' ', '\ ') 
--- tags
-|| ',host_name=' || replace(hos.name, ' ', '\ ')
-|| ',group_name=' || replace(grp.name, ' ', '\ ')
-|| ',applications=' || replace((SELECT string_agg(app.name, ' | ')
-    FROM public.items_applications iap
-    INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ ')
-|| ' value=' || CAST(his.value as varchar(32))
--- timestamp (in ms)
-|| ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as result
-FROM public.history_log his
-INNER JOIN public.items ite on ite.itemid = his.itemid
-INNER JOIN public.hosts hos on hos.hostid = ite.hostid
-INNER JOIN public.hosts_groups hg on hg.hostid = hos.hostid
-INNER JOIN public.groups grp on grp.groupid = hg.groupid
-WHERE grp.internal=0
-   AND his.clock > ##STARTDATE##
-   AND his.clock <= ##ENDDATE##;
+   AND his.clock <= ##ENDDATE##
+ORDER BY his.clock ASC, his.ns ASC, his.itemid ASC
+LIMIT ##ROWSPERBATCH##;
 `

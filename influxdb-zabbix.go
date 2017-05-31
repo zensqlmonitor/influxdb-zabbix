@@ -19,10 +19,10 @@ import (
 
 	toml "github.com/BurntSushi/toml"
 
-	cfg "github.com/zensqlmonitor/influxdb-zabbix/config"
-	pgsql "github.com/zensqlmonitor/influxdb-zabbix/input/postgresql"
-	log "github.com/zensqlmonitor/influxdb-zabbix/log"
-	influx "github.com/zensqlmonitor/influxdb-zabbix/output/influxdb"
+	cfg "github.com/influxdb-zabbix/config"
+	pgsql "github.com/influxdb-zabbix/input/postgresql"
+	log "github.com/influxdb-zabbix/log"
+	influx "github.com/influxdb-zabbix/output/influxdb"
 )
 
 var exitChan = make(chan int)
@@ -49,6 +49,7 @@ type Input struct {
 	address   string
 	tablename string
 	interval  int
+	inputrowsperbatch int
 	mapTables *MapTable
 }
 
@@ -58,11 +59,8 @@ type Output struct {
 	username  string
 	password  string
 	precision string
+	outputrowsperbatch int
 }
-
-// type Postgres struct {
-//  	input Input
-// }
 
 type InfluxDB struct {
 	output Output
@@ -79,11 +77,25 @@ var mapTables = make(MapTable)
 
 var mu sync.Mutex
 
+const (
+	millisPerSecond     = int64(time.Second / time.Millisecond)
+	nanosPerMillisecond = int64(time.Millisecond / time.Nanosecond)
+)
+
 //
 // Utils
 //
 func rightPad(s string, padStr string, pLen int) string {
 	return s + strings.Repeat(padStr, pLen)
+}
+
+func msToTime(ms string) (time.Time, error) {
+	msInt, err := strconv.ParseInt(ms, 10, 64)
+	if err != nil {
+		return time.Time{}, err
+	}
+	return time.Unix(msInt/millisPerSecond,
+		(msInt%millisPerSecond)*nanosPerMillisecond), nil
 }
 
 //
@@ -125,7 +137,6 @@ func (config *TOMLConfig) initLogging() {
 
 	for i, mode := range LogModes {
 		mode = strings.TrimSpace(mode)
-		//fmt.Printf("Logging mode: %s\n", mode)
 
 		// Log Level
 		var levelName string
@@ -285,159 +296,188 @@ func (toml *TOMLConfig) Validate() error {
 // Gather data
 //
 func (p *Param) gatherData() error {
+
 	// read registry
 	if err := readRegistry(); err != nil {
 		fmt.Println(err)
 		return err
 	}
 	start := time.Now()
+	enddate := time.Now()
+	startdateEpoch := time.Now()
 	startdate := mapTables.Get(p.input.tablename)
 
+	// check 1 : registered startdate
 	if len(startdate) == 0 {
 		log.Fatal(1, "No startdate defined for table %s", p.input.tablename)
 		return nil
 	}
-
+	// check 2 : configured provider
 	if p.input.provider != "postgresql" {
 		log.Fatal(1, "Provider %s is not yet supported", p.input.provider)
 		return nil
 	}
 
-	// <--  Extract
-	ext := pgsql.NewExtracter(
-		p.input.address,
-		p.input.tablename,
-		startdate)
-
-	if err := ext.Extract(); err != nil {
-		log.Error(1, "Error while executing script: %s", err)
-		return err
-	}
-
-	var rows int = len(ext.Result)
-	var tlen int = len(p.input.tablename)
-
-	log.Info(
-		fmt.Sprintf(
-			"<-- Extract | %s| %v rows | took %s",
-			rightPad(p.input.tablename, " ", 20-tlen),
-			rows,
-			time.Since(start)))
-
-	/// no row, no load
-	if rows == 0 {
-		log.Info(
-			fmt.Sprintf(
-				"--> Load    | %s| No data",
-				rightPad(p.input.tablename, " ", 20-tlen)))
-
-		// Save registry
-		saveRegistry(p.input.tablename, ext.Enddate)
-
-		log.Info(
-			fmt.Sprintf(
-				"--- Waiting | %s| %v sec ",
-				rightPad(p.input.tablename, " ", 20-len(p.input.tablename)),
-				p.input.interval))
-		return nil
-	}
-
-	// --> Load
-	start = time.Now()
-	batchNumber := 100000
-	inlineData := ""
-
-	if rows <= batchNumber {
-		inlineData = strings.Join(ext.Result[:], "\n")
-
-		loa := influx.NewLoader(
-			fmt.Sprintf("%s/write?db=%s&precision=%s",
-				p.output.address,
-				p.output.database,
-				p.output.precision),
-                                p.output.username,
-                                p.output.password,
-                                inlineData)
-		err := loa.Load()
+	startdateEpoch, err := time.Parse("2006-01-02T15:04:05", startdate)
+	if err != nil {
+		startdateEpoch, err = time.Parse(time.RFC3339, startdate)
 		if err != nil {
-			log.Error(1, "Error while loading data: %s", err)
+			return err
+		}
+	}
+
+	var tlen int = len(p.input.tablename)
+	var loopnr int = 0
+	ext := pgsql.Input{}
+
+	// <--  Extract
+	for {
+		if ext.Tablename == "" {
+			ext = pgsql.NewExtracter(
+				p.input.address,
+				p.input.tablename,
+				p.input.inputrowsperbatch,
+				startdateEpoch,
+				enddate)
+		}
+
+		loopnr += 1
+		log.Trace(
+			fmt.Sprintf(
+				"--- Table %s | Loop #%v | Starting from %s | Limit %v",
+				ext.Tablename,
+				loopnr,
+				ext.Startdate,
+				ext.Rowsperbatch))
+
+		if err := ext.Extract(); err != nil {
+			log.Error(1, "Error while executing script: %s", err)
 			return err
 		}
 
+		// copy the result
+		var rowcount int = len(ext.Result)
+	    rows := make([]string, rowcount)
+		copy(rows, ext.Result)
+		
 		log.Info(
 			fmt.Sprintf(
-				"--> Load    | %s| %v rows | took %s",
+				"<-- Extract | %s| %v rows | took %s",
 				rightPad(p.input.tablename, " ", 20-tlen),
-				rows,
+				rowcount,
 				time.Since(start)))
 
-	} else { // multiple batches
-
-		var batches float64 = float64(rows) / float64(batchNumber)
-		var batchesCeiled float64 = math.Ceil(batches)
-		var batchLoops int = 1
-		var minRange int = 0
-		var maxRange int = 0
-
-		for batches > 0 { // while
-			if batchLoops == 1 {
-				minRange = 0
-			} else {
-				minRange = maxRange + 1
-			}
-
-			maxRange = batchLoops * batchNumber
-			if maxRange > rows {
-				maxRange = rows - 1
-			}
-
-			// create slide
-			datapart := []string{}
-			for i := minRange; i <= maxRange; i++ {
-				datapart = append(datapart, ext.Result[i])
-			}
-
-			inlineData = strings.Join(datapart[:], "\n")
-
-			start = time.Now()
-			loa := influx.NewLoader(
+		/// no row, no load
+		if rowcount == 0 {
+			log.Info(
 				fmt.Sprintf(
-					"%s/write?db=%s&precision=%s",
+					"--> Load    | %s| No data",
+					rightPad(p.input.tablename, " ", 20-tlen)))
+
+			// Save registry
+			saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
+
+			log.Info(
+				fmt.Sprintf(
+					"--- Waiting | %s| %v sec ",
+					rightPad(p.input.tablename, " ", 20-len(p.input.tablename)),
+					p.input.interval))
+			break
+		}
+
+		// --> Load
+		start = time.Now()
+		batchNumber := p.output.outputrowsperbatch
+		inlineData := ""
+
+		if rowcount <= batchNumber {
+			inlineData = strings.Join(rows[:], "\n")
+
+			loa := influx.NewLoader(
+				fmt.Sprintf("%s/write?db=%s&precision=%s",
 					p.output.address,
 					p.output.database,
-					p.output.precision),
-                                p.output.username,
-                                p.output.password,
-                                inlineData)
-
+					p.output.precision), inlineData)
 			err := loa.Load()
 			if err != nil {
 				log.Error(1, "Error while loading data: %s", err)
 				return err
 			}
 
-			prettyTableName := fmt.Sprintf("%s (%v/%v)",
-				p.input.tablename,
-				batchLoops,
-				batchesCeiled)
-			tlen = len(prettyTableName)
+			log.Info(
+				fmt.Sprintf(
+					"--> Load    | %s| %v rows | took %s",
+					rightPad(p.input.tablename, " ", 20-tlen),
+					rowcount,
+					time.Since(start)))
 
-			log.Info(fmt.Sprintf("--> Load    | %s| %v rows | took %s",
-				prettyTableName,
-				len(datapart),
-				time.Since(start)))
+		} else { // multiple batches
 
-			batchLoops += 1
-			batches -= 1
+			var batches float64 = float64(rowcount) / float64(batchNumber)
+			var batchesCeiled float64 = math.Ceil(batches)
+			var batchLoops int = 1
+			var minRange int = 0
+			var maxRange int = 0
+
+			for batches > 0 { // while
+				if batchLoops == 1 {
+					minRange = 0
+				} else {
+					minRange = maxRange + 1
+				}
+
+				maxRange = batchLoops * batchNumber
+				if maxRange >= rowcount {
+					maxRange = rowcount - 1
+				}
+
+				// create slide
+				
+				datapart := []string{}
+				for i := minRange; i <= maxRange; i++ {
+					datapart = append(datapart, rows[i])
+				}
+
+				inlineData = strings.Join(datapart[:], "\n")
+
+				start = time.Now()
+				loa := influx.NewLoader(
+					fmt.Sprintf(
+						"%s/write?db=%s&precision=%s",
+						p.output.address,
+						p.output.database,
+						p.output.precision), inlineData)
+
+				err := loa.Load()
+				if err != nil {
+					log.Error(1, "Error while loading data: %s", err)
+					return err
+				}
+
+				prettyTableName := fmt.Sprintf("%s (%v/%v)",
+					p.input.tablename,
+					batchLoops,
+					batchesCeiled)
+				tlen = len(prettyTableName)
+
+				log.Info(fmt.Sprintf("--> Load    | %s| %v rows | took %s",
+					prettyTableName,
+					len(datapart),
+					time.Since(start)))
+
+				batchLoops += 1
+				batches -= 1
+			}
 		}
-	}
-
+		
 	// Save registry
-	saveRegistry(p.input.tablename, ext.Enddate)
+	saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
 	tlen = len(p.input.tablename)
 	log.Info(fmt.Sprintf("--- Waiting | %s| %v sec ",
 		rightPad(p.input.tablename, " ", 20-tlen),
-		p.input.interval))
+		p.input.interval))	
+
+	} // end for
 
 	return nil
 }
@@ -626,9 +666,11 @@ func main() {
 		if table.Active {
 			log.Trace(
 				fmt.Sprintf(
-					"------ %s with an interval of %v sec",
+					"------ %s with an interval of %v sec | InputRowsPerBatch = %v | OutputRowsPerBatch = %v",
 					table.Name,
-					table.Interval))
+					table.Interval,
+					table.Inputrowsperbatch,
+					table.Outputrowsperbatch))
 
 			tablesEnabled = append(tablesEnabled, table)
 		}
@@ -646,13 +688,15 @@ func main() {
 	log.Trace(fmt.Sprintf("------ %s", provider))
 
 	log.Info("--- Start polling")
-	for _, t := range tablesEnabled { // foreach active tables
+	// foreach active tables
+	for _, t := range tablesEnabled { 
 
 		input := Input{
 			provider,
 			address,
 			t.Name,
 			t.Interval,
+			t.Inputrowsperbatch,
 			&mapTables}
 
 		output := Output{
@@ -660,7 +704,8 @@ func main() {
 			config.InfluxDB.Database,
 			config.InfluxDB.Username,
 			config.InfluxDB.Password,
-			config.InfluxDB.Precision}
+			config.InfluxDB.Precision,
+			t.Outputrowsperbatch}
 
 		p := &Param{input, output}
 
