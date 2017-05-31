@@ -5,7 +5,7 @@ import (
 	"strings"
 	"strconv"
 	"time"
-        "github.com/influxdb-zabbix/input"
+        "github.com/zensqlmonitor/influxdb-zabbix/input"
         //"fmt"
   
 	_"github.com/lib/pq"
