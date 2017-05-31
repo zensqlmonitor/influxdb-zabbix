@@ -56,6 +56,8 @@ type Table struct {
 	Active   bool
 	Interval int
 	Startdate string
+	Inputrowsperbatch int
+	Outputrowsperbatch int
 }
 type registry struct {
 	FileName string       
