@@ -19,10 +19,10 @@ import (
 
 	toml "github.com/BurntSushi/toml"
 
-	cfg "github.com/influxdb-zabbix/config"
-	pgsql "github.com/influxdb-zabbix/input/postgresql"
-	log "github.com/influxdb-zabbix/log"
-	influx "github.com/influxdb-zabbix/output/influxdb"
+	cfg "github.com/zensqlmonitor/influxdb-zabbix/config"
+	pgsql "github.com/zensqlmonitor/influxdb-zabbix/input/postgresql"
+	log "github.com/zensqlmonitor/influxdb-zabbix/log"
+	influx "github.com/zensqlmonitor/influxdb-zabbix/output/influxdb"
 )
 
 var exitChan = make(chan int)
