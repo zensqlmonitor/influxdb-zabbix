@@ -17,15 +17,41 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 	- Run ``` go get github.com/zensqlmonitor/influxdb-zabbix ```
 	- Edit the configuration to match your needs  <br />	
 - PostgreSQL:
+
+Create user:
 ```SQL 
 CREATE USER influxdb_zabbix WITH PASSWORD '***';
 GRANT USAGE ON SCHEMA public TO influxdb_zabbix;
 ```
-At the database level:
+Grant right at the database level:
 ```SQL 
 GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
 GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
 ```
+
+Create indexes:
+```SQL 
+CREATE UNIQUE INDEX idx_history_clock_ns_itemid
+    ON public.history USING btree
+    (clock, ns, itemid)
+    TABLESPACE zabbixindex;
+
+CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
+    ON public.history_uint USING btree
+    (clock, ns, itemid)
+    TABLESPACE zabbixindex;
+ 
+ CREATE INDEX idx_trends_clock_itemid
+    ON public.trends USING btree
+    (clock, itemid)
+    TABLESPACE zabbixindex;
+    
+  CREATE INDEX idx_trends_uint_clock_itemid
+    ON public.trends_uint USING btree
+    (clock, itemid)
+    TABLESPACE zabbixindex;
+```
+
 
 ### How to use GO code
 
