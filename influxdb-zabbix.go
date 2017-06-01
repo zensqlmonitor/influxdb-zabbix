@@ -395,10 +395,10 @@ func (p *Param) gatherData() error {
 
 			loa := influx.NewLoader(
 				fmt.Sprintf(
-					"%s/write?db=%s&precision=%s",
-					p.output.address,
-					p.output.database,
-					p.output.precision),
+				"%s/write?db=%s&precision=%s",
+				p.output.address,
+				p.output.database,
+				p.output.precision),
                                 p.output.username,
                                 p.output.password,
                                 inlineData)
@@ -448,10 +448,13 @@ func (p *Param) gatherData() error {
 				start = time.Now()
 				loa := influx.NewLoader(
 					fmt.Sprintf(
-						"%s/write?db=%s&precision=%s",
-						p.output.address,
-						p.output.database,
-						p.output.precision), inlineData)
+					"%s/write?db=%s&precision=%s",
+					p.output.address,
+					p.output.database,
+					p.output.precision),
+					p.output.username,
+					p.output.password,
+					inlineData)
 
 				err := loa.Load()
 				if err != nil {
