@@ -357,7 +357,7 @@ func (p *Param) gatherData() error {
 
 		// copy the result
 		var rowcount int = len(ext.Result)
-	    rows := make([]string, rowcount)
+	        rows := make([]string, rowcount)
 		copy(rows, ext.Result)
 		
 		log.Info(
@@ -394,10 +394,15 @@ func (p *Param) gatherData() error {
 			inlineData = strings.Join(rows[:], "\n")
 
 			loa := influx.NewLoader(
-				fmt.Sprintf("%s/write?db=%s&precision=%s",
+				fmt.Sprintf(
+					"%s/write?db=%s&precision=%s",
 					p.output.address,
 					p.output.database,
-					p.output.precision), inlineData)
+					p.output.precision),
+                                p.output.username,
+                                p.output.password,
+                                inlineData)
+			
 			err := loa.Load()
 			if err != nil {
 				log.Error(1, "Error while loading data: %s", err)
