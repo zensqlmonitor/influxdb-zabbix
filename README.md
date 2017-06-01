@@ -73,8 +73,11 @@ CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
   - trends
   - trends_uint
 - Tables like history_log, _text and _str are not replicated.
-- You can configure a different interval for each table.
-
+- Configurable for each table:
+  - interval: the polling interval
+  - inputrowsperbatch : to allow the source extract to be splitted in multiple batches
+  - outputrowsperbatch : to allow the destination load to be splitted in multiple batches
+  
 ## License
 
 MIT-LICENSE. See LICENSE file provided in the repository for details
