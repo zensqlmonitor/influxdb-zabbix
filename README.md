@@ -1,6 +1,3 @@
-[Twitter](https://twitter.com/zensqlmonitor) |
-[Email](mailto:sqlzen@hotmail.com)
-
 # influxdb-zabbix
 Gather data from Zabbix back-end and load to InfluxDB in near real-time for enhanced performance and easier usage with Grafana.
 
