@@ -15,7 +15,7 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 	- [Install GO](https://golang.org/doc/install)
 	- [Setup you GOPATH](https://golang.org/doc/code.html#GOPATH)
 	- Run ``` go get github.com/zensqlmonitor/influxdb-zabbix ```
-	- Edit the configuration to match your needs  <br />	
+	- Edit the configuration file influxdb-zabbix.conf to match your needs  <br />	
 - PostgreSQL:
 
 	Create user:
