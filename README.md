@@ -94,9 +94,10 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 - TOML parser (https://github.com/BurntSushi/toml)
 - Pure Go Postgres driver for database/sql (https://github.com/lib/pq/)
 
-## Notes on configuration
+## Configuration
 
 - PostgreSQL and MariaDB/MySQL are supported
+
 - Tables that can be replicated are:
   - history
   - history_uint
