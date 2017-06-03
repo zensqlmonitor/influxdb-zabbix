@@ -96,13 +96,14 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 
 ## Notes on configuration
 
-- Supported back-end is at this time PostgreSQL only, the most popular back-end for Zabbix. 
+- PostgreSQL and MariaDB/MySQL are supported
 - Tables that can be replicated are:
   - history
   - history_uint
   - trends
   - trends_uint
 - Tables like history_log, _text and _str are not replicated.
+
 - Configurable for each table:
   - interval: the polling interval
   - inputrowsperbatch : to allow the source extract to be splitted in multiple batches
