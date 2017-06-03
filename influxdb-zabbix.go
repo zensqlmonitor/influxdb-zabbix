@@ -20,9 +20,9 @@ import (
 	toml "github.com/BurntSushi/toml"
 
 	cfg "github.com/zensqlmonitor/influxdb-zabbix/config"
-	pgsql "github.com/zensqlmonitor/influxdb-zabbix/input/postgresql"
 	log "github.com/zensqlmonitor/influxdb-zabbix/log"
 	influx "github.com/zensqlmonitor/influxdb-zabbix/output/influxdb"
+	input "github.com/zensqlmonitor/influxdb-zabbix/input"
 )
 
 var exitChan = make(chan int)
@@ -307,17 +307,12 @@ func (p *Param) gatherData() error {
 	startdateEpoch := time.Now()
 	startdate := mapTables.Get(p.input.tablename)
 
-	// check 1 : registered startdate
+	
+	// no start date configured ? return
 	if len(startdate) == 0 {
 		log.Fatal(1, "No startdate defined for table %s", p.input.tablename)
 		return nil
 	}
-	// check 2 : configured provider
-	if p.input.provider != "postgresql" {
-		log.Fatal(1, "Provider %s is not yet supported", p.input.provider)
-		return nil
-	}
-
 	startdateEpoch, err := time.Parse("2006-01-02T15:04:05", startdate)
 	if err != nil {
 		startdateEpoch, err = time.Parse(time.RFC3339, startdate)
@@ -328,17 +323,18 @@ func (p *Param) gatherData() error {
 
 	var tlen int = len(p.input.tablename)
 	var loopnr int = 0
-	ext := pgsql.Input{}
+	var ext input.Input
 
 	// <--  Extract
 	for {
 		if ext.Tablename == "" {
-			ext = pgsql.NewExtracter(
-				p.input.address,
-				p.input.tablename,
-				p.input.inputrowsperbatch,
-				startdateEpoch,
-				enddate)
+			ext = input.NewExtracter(
+					p.input.provider,
+					p.input.address,
+					p.input.tablename,
+					p.input.inputrowsperbatch,
+					startdateEpoch,
+					enddate)
 		}
 
 		loopnr += 1
@@ -369,6 +365,7 @@ func (p *Param) gatherData() error {
 
 		/// no row, no load
 		if rowcount == 0 {
+		
 			log.Info(
 				fmt.Sprintf(
 					"--> Load    | %s| No data",
@@ -437,7 +434,6 @@ func (p *Param) gatherData() error {
 				}
 
 				// create slide
-				
 				datapart := []string{}
 				for i := minRange; i <= maxRange; i++ {
 					datapart = append(datapart, rows[i])
@@ -477,6 +473,7 @@ func (p *Param) gatherData() error {
 				batches -= 1
 			}
 		}
+		
 		
 	// Save registry
 	saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
