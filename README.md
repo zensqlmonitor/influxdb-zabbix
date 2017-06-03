@@ -18,40 +18,70 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 	- Edit the configuration to match your needs  <br />	
 - PostgreSQL:
 
-Create user:
-```SQL 
-CREATE USER influxdb_zabbix WITH PASSWORD '***';
-GRANT USAGE ON SCHEMA public TO influxdb_zabbix;
-```
-Grant right at the database level:
-```SQL 
-GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
-GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
-```
+	Create user:
+	```SQL 
+	CREATE USER influxdb_zabbix WITH PASSWORD '***';
+	GRANT USAGE ON SCHEMA public TO influxdb_zabbix;
+	```
+	Grant right at the database level:
+	```SQL 
+	GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
+	GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
+	```
 
-Create indexes:
-```SQL 
-CREATE UNIQUE INDEX idx_history_clock_ns_itemid
-    ON public.history USING btree
-    (clock, ns, itemid)
-    TABLESPACE zabbixindex;
+	Create indexes:
+	```SQL 
+	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
+	    ON public.history USING btree
+	    (clock, ns, itemid)
+	    TABLESPACE zabbixindex;
 
-CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
-    ON public.history_uint USING btree
-    (clock, ns, itemid)
-    TABLESPACE zabbixindex;
- 
- CREATE INDEX idx_trends_clock_itemid
-    ON public.trends USING btree
-    (clock, itemid)
-    TABLESPACE zabbixindex;
-    
-  CREATE INDEX idx_trends_uint_clock_itemid
-    ON public.trends_uint USING btree
-    (clock, itemid)
-    TABLESPACE zabbixindex;
-```
+	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
+	    ON public.history_uint USING btree
+	    (clock, ns, itemid)
+	    TABLESPACE zabbixindex;
 
+	 CREATE INDEX idx_trends_clock_itemid
+	    ON public.trends USING btree
+	    (clock, itemid)
+	    TABLESPACE zabbixindex;
+
+	  CREATE INDEX idx_trends_uint_clock_itemid
+	    ON public.trends_uint USING btree
+	    (clock, itemid)
+	    TABLESPACE zabbixindex;
+	```
+	
+- MariaDB / MySQL:
+
+	Create user:
+	```SQL 
+	CREATE USER 'influxdb_zabbix'@'localhost' IDENTIFIED BY '***';
+	```
+	
+	Grant right at the database level:
+	```SQL 
+	GRANT SELECT ON zabbix.trends TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.trends_uint TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.history TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.history_uint TO influxdb_zabbix@localhost;
+ 	flush privileges;
+	```
+	
+	Create indexes:
+	```SQL 
+	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
+	ON history (clock, ns, itemid) USING btree;
+
+	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
+	ON history_uint (clock, ns, itemid) USING btree;
+
+	CREATE INDEX idx_trends_clock_itemid
+	ON trends (clock, itemid) USING btree;
+
+	CREATE INDEX idx_trends_uint_clock_itemid
+	ON trends_uint (clock, itemid) USING btree;
+	```
 
 ### How to use GO code
 
