@@ -133,6 +133,10 @@ replace(replace(CASE
        THEN replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1))
     WHEN (position('$2' in ite.name) > 0) 
        THEN replace(ite.name, '$2', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 2))
+    WHEN (position('$3' in ite.name) > 0)
+       THEN replace(ite.name, '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
+    WHEN (position('$1' in ite.name) > 0) AND (position('$3' in ite.name) > 0)
+       THEN replace(replace(ite.name, '$1', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 1)), '$3', split_part(substring(ite.key_ FROM '\[(.+)\]'), ',', 3))
     ELSE ite.name
   END, ',', ''), ' ', '\ ') 
 -- tags
