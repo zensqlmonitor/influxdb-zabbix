@@ -2,7 +2,9 @@
 [Email](mailto:sqlzen@hotmail.com)
 
 # influxdb-zabbix
-Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
+Gather data from Zabbix back-end and load to InfluxDB in near real-time for enhanced performance and easier usage with Grafana.
+
+As InfluxDB show an excellent compression rate (in our case: 7x), this project could be used also to archive Zabbix backend.
 
 ## Getting Started
 
@@ -90,13 +92,14 @@ Gather data from Zabbix back-end and send to InfluxDB for enhanced performance
 - Install in $GOPATH/bin: ``` go install influxdb-zabbix.go ```
 
 ### Dependencies
-- Go 1.7
+- Go 1.7+
 - TOML parser (https://github.com/BurntSushi/toml)
 - Pure Go Postgres driver for database/sql (https://github.com/lib/pq/)
+- Pure Go MySQL driver for database/sql (https://github.com/go-sql-driver/mysql/)
 
 ## Configuration
 
-- PostgreSQL and MariaDB/MySQL are supported
+- PostgreSQL and MariaDB/MySQL supported
 
 - Tables that can be replicated are:
   - history
