@@ -77,14 +77,14 @@ var mapTables = make(MapTable)
 
 var mu sync.Mutex
 
+//
+// Utils
+//
 const (
 	millisPerSecond     = int64(time.Second / time.Millisecond)
 	nanosPerMillisecond = int64(time.Millisecond / time.Nanosecond)
 )
 
-//
-// Utils
-//
 func rightPad(s string, padStr string, pLen int) string {
 	return s + strings.Repeat(padStr, pLen)
 }
@@ -251,7 +251,7 @@ func (toml *TOMLConfig) Validate() error {
 		return fmterr("Validation failed : You must at least define one Zabbix database provider.")
 	}
 	if len(zabbixes) > 1 {
-		return fmterr("Validation failed : You can only define one Zabbix database.")
+		return fmterr("Validation failed : You can only define one Zabbix provider.")
 	}
 
 	for dbprov, zabbix := range zabbixes {
@@ -267,11 +267,12 @@ func (toml *TOMLConfig) Validate() error {
 	}
 	var activeTablesCount = 0
 	for tableName, table := range tables {
+
 		if table.Active {
 			activeTablesCount += 1
 		}
 		if table.Interval < 15 {
-			toml.Tables[tableName].Interval = 15 // override
+			toml.Tables[tableName].Interval = cfg.DefaultTableInterval 
 		}
 
 		if len(table.Startdate) > 0 {
@@ -283,6 +284,12 @@ func (toml *TOMLConfig) Validate() error {
 			if err != nil {
 				return fmterr("Validation failed : Startdate for table %s is not well formatted.", tableName)
 			}
+		}
+		if table.Inputrowsperbatch == 0 {
+			toml.Tables[tableName].Inputrowsperbatch = cfg.DefaultInputRowsPerBatch
+		}
+		if table.Outputrowsperbatch == 0 {
+			toml.Tables[tableName].Outputrowsperbatch = cfg.DefaultOutputRowsPerBatch
 		}
 	}
 	if activeTablesCount == 0 {
@@ -306,13 +313,14 @@ func (p *Param) gatherData() error {
 	enddate := time.Now()
 	startdateEpoch := time.Now()
 	startdate := mapTables.Get(p.input.tablename)
-
 	
 	// no start date configured ? return
 	if len(startdate) == 0 {
 		log.Fatal(1, "No startdate defined for table %s", p.input.tablename)
 		return nil
 	}
+
+	// format start date
 	startdateEpoch, err := time.Parse("2006-01-02T15:04:05", startdate)
 	if err != nil {
 		startdateEpoch, err = time.Parse(time.RFC3339, startdate)
@@ -325,7 +333,7 @@ func (p *Param) gatherData() error {
 	var loopnr int = 0
 	var ext input.Input
 
-	// <--  Extract
+	// <--  Extract loop
 	for {
 		if ext.Tablename == "" {
 			ext = input.NewExtracter(
@@ -351,9 +359,8 @@ func (p *Param) gatherData() error {
 			return err
 		}
 
-		// copy the result
 		var rowcount int = len(ext.Result)
-	        rows := make([]string, rowcount)
+	    rows := make([]string, rowcount)
 		copy(rows, ext.Result)
 		
 		log.Info(
@@ -365,13 +372,12 @@ func (p *Param) gatherData() error {
 
 		/// no row, no load
 		if rowcount == 0 {
-		
 			log.Info(
 				fmt.Sprintf(
 					"--> Load    | %s| No data",
 					rightPad(p.input.tablename, " ", 20-tlen)))
 
-			// Save registry
+			// Save registry & break
 			saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
 
 			log.Info(
@@ -379,26 +385,26 @@ func (p *Param) gatherData() error {
 					"--- Waiting | %s| %v sec ",
 					rightPad(p.input.tablename, " ", 20-len(p.input.tablename)),
 					p.input.interval))
+
 			break
 		}
 
+
 		// --> Load
 		start = time.Now()
-		batchNumber := p.output.outputrowsperbatch
 		inlineData := ""
 
-		if rowcount <= batchNumber {
+		if rowcount <= p.output.outputrowsperbatch {
 			inlineData = strings.Join(rows[:], "\n")
-
 			loa := influx.NewLoader(
 				fmt.Sprintf(
-				"%s/write?db=%s&precision=%s",
-				p.output.address,
-				p.output.database,
-				p.output.precision),
-                                p.output.username,
-                                p.output.password,
-                                inlineData)
+					"%s/write?db=%s&precision=%s",
+						p.output.address,
+						p.output.database,
+						p.output.precision),
+						p.output.username,
+						p.output.password,
+						inlineData)
 			
 			err := loa.Load()
 			if err != nil {
@@ -415,7 +421,7 @@ func (p *Param) gatherData() error {
 
 		} else { // multiple batches
 
-			var batches float64 = float64(rowcount) / float64(batchNumber)
+			var batches float64 = float64(rowcount) / float64(p.output.outputrowsperbatch)
 			var batchesCeiled float64 = math.Ceil(batches)
 			var batchLoops int = 1
 			var minRange int = 0
@@ -428,7 +434,7 @@ func (p *Param) gatherData() error {
 					minRange = maxRange + 1
 				}
 
-				maxRange = batchLoops * batchNumber
+				maxRange = batchLoops * p.output.outputrowsperbatch
 				if maxRange >= rowcount {
 					maxRange = rowcount - 1
 				}
@@ -503,6 +509,9 @@ func (p *Param) gather() error {
 	return nil
 }
 
+//
+// Configuration
+//
 func parseConfig() error {
 	if _, err := toml.DecodeFile(*fConfig, &config); err != nil {
 		return err
@@ -517,6 +526,9 @@ func validateConfig() error {
 	return nil
 }
 
+//
+// Registry file for storing last sync
+//
 func createRegistry() error {
 
 	if len(config.Tables) == 0 {
@@ -538,7 +550,6 @@ func createRegistry() error {
 	// write JSON file
 	registryOutJson, _ := json.MarshalIndent(regEntries, "", "    ")
 	ioutil.WriteFile(config.Registry.FileName, registryOutJson, 0777)
-
 	log.Trace(fmt.Sprintf("------ Registry file is now created"))
 
 	return nil
@@ -563,9 +574,6 @@ func readRegistry() error {
 		tableName := regEntries[i].Table
 		startdate := regEntries[i].Startdate
 		mapTables.Set(tableName, startdate)
-		// mu.Lock()
-		// mapTables[tableName] = startdate
-		// mu.Unlock()
 	}
 
 	return nil
@@ -606,6 +614,7 @@ func (mt MapTable) Set(key string, value string) {
 	defer mu.Unlock()
 	mt[key] = value
 }
+
 func (mt MapTable) Get(key string) string {
 	if len(mt) > 0 {
 		mu.Lock()
@@ -632,9 +641,9 @@ func check(e error) {
 }
 
 //
-// Main
+//  Configuration, global logging, registry
 //
-func main() {
+func warmup() {
 
 	// command-line flag parsing
 	flag.Parse()
@@ -661,10 +670,19 @@ func main() {
 		log.Error(0, err.Error())
 		return
 	}
+}
+
+//
+// Main
+//
+func main() {
+
+    
+	warmup()
 
 	log.Info("***** Starting influxdb-zabbix *****")
 
-	// define list of enabled tables
+	// list of active tables
 	log.Trace("--- Active tables:")
 	var tablesEnabled = []*cfg.Table{}
 	for _, table := range config.Tables {
@@ -680,6 +698,7 @@ func main() {
 			tablesEnabled = append(tablesEnabled, table)
 		}
 	}
+
 	// input source
 	var source = config.Zabbix
 	var provider string
@@ -691,8 +710,8 @@ func main() {
 	}
 	log.Trace(fmt.Sprintf("--- Provider:"))
 	log.Trace(fmt.Sprintf("------ %s", provider))
-
 	log.Info("--- Start polling")
+
 	// foreach active tables
 	for _, t := range tablesEnabled { 
 

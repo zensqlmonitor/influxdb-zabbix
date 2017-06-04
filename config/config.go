@@ -27,6 +27,9 @@ const (
 	DefaultInfluxDBPrecision string = "ms"
 
 	DefaultZabbixAddress string = "host=localhost user=zabbix sslmode=disable database=zabbix"
+	DefaultTableInterval int = 15
+	DefaultInputRowsPerBatch int = 100000
+	DefaultOutputRowsPerBatch int = 100000
 )
 
 type TOMLConfig struct {
