@@ -10,6 +10,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	- [Create a database with a retention period ](https://docs.influxdata.com/influxdb/v1.1/introduction/getting_started/) <br />
 - Grafana:
 	- [Install Grafana](http://docs.grafana.org/installation/)
+	- [Using InfluxDB in Grafana](http://docs.grafana.org/features/datasources/influxdb/)
 - influxdb-zabbix:
 	- [Install GO](https://golang.org/doc/install)
 	- [Setup you GOPATH](https://golang.org/doc/code.html#GOPATH)
