@@ -1,0 +1,16 @@
+[Unit]
+Description=Gather data from Zabbix back-end and load to InfluxDB in near real-time
+Documentation=https://github.com/zensqlmonitor/influxdb-zabbix 
+After=network.target
+
+[Service]
+User=influxdb-zabbix
+Environment='STDOUT=/dev/null'
+Environment='STDERR=/var/log/influxdb-zabbix/influxdb-zabbix.log'
+ExecStart=/opt/influxdb-zabbix/influxdb-zabbix -config /etc/influxdb-zabbix/influxdb-zabbix.conf >> ${STDOUT} 2>> ${STDERR}
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=influxdb-zabbix.service

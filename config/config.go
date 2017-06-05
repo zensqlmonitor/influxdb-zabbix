@@ -5,8 +5,8 @@ import ()
 
 // Defaults for config variables which are not set
 const (
-	DefaultRegistryFileName string = "influxdb-zabbix.json"
-	DefaultLogFileName  	string = "influxdb-zabbix.log"
+	DefaultRegistryFileName string = "/var/lib/influxdb-zabbix/influxdb-zabbix.json"
+	DefaultLogFileName  	string = "/var/log/influxdb-zabbix/influxdb-zabbix.log"
 	DefaultModes        	string = "console"
 	DefaultBufferLen    	int    = 10000
 	DefaultLevelConsole 	string = "Trace"

@@ -20,9 +20,9 @@ import (
 	toml "github.com/BurntSushi/toml"
 
 	cfg "github.com/zensqlmonitor/influxdb-zabbix/config"
+	input "github.com/zensqlmonitor/influxdb-zabbix/input"
 	log "github.com/zensqlmonitor/influxdb-zabbix/log"
 	influx "github.com/zensqlmonitor/influxdb-zabbix/output/influxdb"
-	input "github.com/zensqlmonitor/influxdb-zabbix/input"
 )
 
 var exitChan = make(chan int)
@@ -45,20 +45,20 @@ type Param struct {
 }
 
 type Input struct {
-	provider  string
-	address   string
-	tablename string
-	interval  int
+	provider          string
+	address           string
+	tablename         string
+	interval          int
 	inputrowsperbatch int
-	mapTables *MapTable
+	mapTables         *MapTable
 }
 
 type Output struct {
-	address   string
-	database  string
-	username  string
-	password  string
-	precision string
+	address            string
+	database           string
+	username           string
+	password           string
+	precision          string
 	outputrowsperbatch int
 }
 
@@ -272,7 +272,7 @@ func (toml *TOMLConfig) Validate() error {
 			activeTablesCount += 1
 		}
 		if table.Interval < 15 {
-			toml.Tables[tableName].Interval = cfg.DefaultTableInterval 
+			toml.Tables[tableName].Interval = cfg.DefaultTableInterval
 		}
 
 		if len(table.Startdate) > 0 {
@@ -313,7 +313,7 @@ func (p *Param) gatherData() error {
 	enddate := time.Now()
 	startdateEpoch := time.Now()
 	startdate := mapTables.Get(p.input.tablename)
-	
+
 	// no start date configured ? return
 	if len(startdate) == 0 {
 		log.Fatal(1, "No startdate defined for table %s", p.input.tablename)
@@ -337,12 +337,12 @@ func (p *Param) gatherData() error {
 	for {
 		if ext.Tablename == "" {
 			ext = input.NewExtracter(
-					p.input.provider,
-					p.input.address,
-					p.input.tablename,
-					p.input.inputrowsperbatch,
-					startdateEpoch,
-					enddate)
+				p.input.provider,
+				p.input.address,
+				p.input.tablename,
+				p.input.inputrowsperbatch,
+				startdateEpoch,
+				enddate)
 		}
 
 		loopnr += 1
@@ -360,9 +360,9 @@ func (p *Param) gatherData() error {
 		}
 
 		var rowcount int = len(ext.Result)
-	    rows := make([]string, rowcount)
+		rows := make([]string, rowcount)
 		copy(rows, ext.Result)
-		
+
 		log.Info(
 			fmt.Sprintf(
 				"<-- Extract | %s| %v rows | took %s",
@@ -389,7 +389,6 @@ func (p *Param) gatherData() error {
 			break
 		}
 
-
 		// --> Load
 		start = time.Now()
 		inlineData := ""
@@ -399,13 +398,13 @@ func (p *Param) gatherData() error {
 			loa := influx.NewLoader(
 				fmt.Sprintf(
 					"%s/write?db=%s&precision=%s",
-						p.output.address,
-						p.output.database,
-						p.output.precision),
-						p.output.username,
-						p.output.password,
-						inlineData)
-			
+					p.output.address,
+					p.output.database,
+					p.output.precision),
+				p.output.username,
+				p.output.password,
+				inlineData)
+
 			err := loa.Load()
 			if err != nil {
 				log.Error(1, "Error while loading data: %s", err)
@@ -450,10 +449,10 @@ func (p *Param) gatherData() error {
 				start = time.Now()
 				loa := influx.NewLoader(
 					fmt.Sprintf(
-					"%s/write?db=%s&precision=%s",
-					p.output.address,
-					p.output.database,
-					p.output.precision),
+						"%s/write?db=%s&precision=%s",
+						p.output.address,
+						p.output.database,
+						p.output.precision),
 					p.output.username,
 					p.output.password,
 					inlineData)
@@ -479,14 +478,13 @@ func (p *Param) gatherData() error {
 				batches -= 1
 			}
 		}
-		
-		
-	// Save registry
-	saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
-	tlen = len(p.input.tablename)
-	log.Info(fmt.Sprintf("--- Waiting | %s| %v sec ",
-		rightPad(p.input.tablename, " ", 20-tlen),
-		p.input.interval))	
+
+		// Save registry
+		saveRegistry(p.input.tablename, ext.Enddate.Format(time.RFC3339))
+		tlen = len(p.input.tablename)
+		log.Info(fmt.Sprintf("--- Waiting | %s| %v sec ",
+			rightPad(p.input.tablename, " ", 20-tlen),
+			p.input.interval))
 
 	} // end for
 
@@ -677,7 +675,6 @@ func warmup() {
 //
 func main() {
 
-    
 	warmup()
 
 	log.Info("***** Starting influxdb-zabbix *****")
@@ -713,7 +710,7 @@ func main() {
 	log.Info("--- Start polling")
 
 	// foreach active tables
-	for _, t := range tablesEnabled { 
+	for _, t := range tablesEnabled {
 
 		input := Input{
 			provider,
