@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	
+
 	toml "github.com/BurntSushi/toml"
 	)
 
@@ -36,7 +36,7 @@ const (
 
 	DefaultZabbixAddress string = "host=localhost user=zabbix sslmode=disable database=zabbix"
 	DefaultTableInterval int = 15
-	DefaultInputRowsPerBatch int = 100000
+	DefaultDaysPerBatch int = 15
 	DefaultOutputRowsPerBatch int = 100000
 )
 
@@ -67,7 +67,7 @@ type Table struct {
 	Active   bool
 	Interval int
 	Startdate string
-	Inputrowsperbatch int
+	Daysperbatch int
 	Outputrowsperbatch int
 }
 type registry struct {
@@ -224,8 +224,8 @@ func (tomlConfig *TOMLConfig) validate() error {
 				return fmterr("Validation failed : Startdate for table %s is not well formatted.", tableName)
 			}
 		}
-		if table.Inputrowsperbatch == 0 {
-			tomlConfig.Tables[tableName].Inputrowsperbatch = DefaultInputRowsPerBatch
+		if table.Daysperbatch == 0 {
+			tomlConfig.Tables[tableName].Daysperbatch = DefaultDaysPerBatch
 		}
 		if table.Outputrowsperbatch == 0 {
 			tomlConfig.Tables[tableName].Outputrowsperbatch = DefaultOutputRowsPerBatch

@@ -15,7 +15,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	- [Install GO](https://golang.org/doc/install)
 	- [Setup you GOPATH](https://golang.org/doc/code.html#GOPATH)
 	- Run ``` go get github.com/zensqlmonitor/influxdb-zabbix ```
-	- Edit the configuration file influxdb-zabbix.conf to match your needs  <br />	
+	- Edit influxdb-zabbix.conf to match your needs  <br />	
 - PostgreSQL:
 
 	Create user:
@@ -23,33 +23,10 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	CREATE USER influxdb_zabbix WITH PASSWORD '***';
 	GRANT USAGE ON SCHEMA public TO influxdb_zabbix;
 	```
-	Grant right at the database level:
+	Grants at the database level:
 	```SQL 
 	GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
 	GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
-	```
-
-	Create indexes:
-	```SQL 
-	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
-	    ON public.history USING btree
-	    (clock, ns, itemid)
-	    TABLESPACE zabbixindex;
-
-	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
-	    ON public.history_uint USING btree
-	    (clock, ns, itemid)
-	    TABLESPACE zabbixindex;
-
-	 CREATE INDEX idx_trends_clock_itemid
-	    ON public.trends USING btree
-	    (clock, itemid)
-	    TABLESPACE zabbixindex;
-
-	  CREATE INDEX idx_trends_uint_clock_itemid
-	    ON public.trends_uint USING btree
-	    (clock, itemid)
-	    TABLESPACE zabbixindex;
 	```
 	
 - MariaDB / MySQL:
@@ -59,7 +36,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	CREATE USER 'influxdb_zabbix'@'localhost' IDENTIFIED BY '***';
 	```
 	
-	Grant right at the database level:
+	Grants at the database level:
 	```SQL 
 	GRANT SELECT ON zabbix.trends TO influxdb_zabbix@localhost;
 	GRANT SELECT ON zabbix.trends_uint TO influxdb_zabbix@localhost;
@@ -67,21 +44,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	GRANT SELECT ON zabbix.history_uint TO influxdb_zabbix@localhost;
  	flush privileges;
 	```
-	
-	Create indexes:
-	```SQL 
-	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
-	ON history (clock, ns, itemid) USING btree;
 
-	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
-	ON history_uint (clock, ns, itemid) USING btree;
-
-	CREATE INDEX idx_trends_clock_itemid
-	ON trends (clock, itemid) USING btree;
-
-	CREATE INDEX idx_trends_uint_clock_itemid
-	ON trends_uint (clock, itemid) USING btree;
-	```
 
 ### How to use GO code
 
@@ -108,7 +71,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 
 - Configurable for each table:
   - interval: the polling interval
-  - inputrowsperbatch : to allow the source extract to be splitted in multiple batches
+  - daysperbatch : number of days to extract from zabbix backend per batch
   - outputrowsperbatch : to allow the destination load to be splitted in multiple batches
   
 ## License
