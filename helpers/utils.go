@@ -13,7 +13,10 @@ const (
 
 // Add a right pad
 func RightPad(s string, padStr string, pLen int) string {
-	return s + strings.Repeat(padStr, pLen)
+	if pLen > 0 {
+			return s + strings.Repeat(padStr, pLen)
+	}
+	return s
 }
 
 // Convert milliseconds to Unix time
