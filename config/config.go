@@ -10,21 +10,21 @@ import (
 	"time"
 
 	toml "github.com/BurntSushi/toml"
-	)
+)
 
 const (
 	DefaultRegistryFileName string = "/var/lib/influxdb-zabbix/influxdb-zabbix.json"
-	DefaultLogFileName  	string = "/var/log/influxdb-zabbix/influxdb-zabbix.log"
-	DefaultModes        	string = "console"
-	DefaultBufferLen    	int    = 10000
-	DefaultLevelConsole 	string = "Trace"
-	DefaultLevelFile    	string = "Warn"
-	DefaultFormatting   	bool   = true
-	DefaultLogRotate    	bool   = true
-	DefaultMaxLines     	int    = 1000000
-	DefaultMaxSizeShift 	int    = 28
-	DefaultDailyRotate  	bool   = true
-	DefaultMaxDays      	int    = 7
+	DefaultLogFileName      string = "/var/log/influxdb-zabbix/influxdb-zabbix.log"
+	DefaultModes            string = "console"
+	DefaultBufferLen        int    = 10000
+	DefaultLevelConsole     string = "Trace"
+	DefaultLevelFile        string = "Warn"
+	DefaultFormatting       bool   = true
+	DefaultLogRotate        bool   = true
+	DefaultMaxLines         int    = 1000000
+	DefaultMaxSizeShift     int    = 28
+	DefaultDailyRotate      bool   = true
+	DefaultMaxDays          int    = 7
 
 	DefaultPollingInterval        int = 30
 	DefaultPollingIntervalIfError int = 60
@@ -34,10 +34,10 @@ const (
 	DefaultInfluxDBDatabase  string = "zabbix"
 	DefaultInfluxDBPrecision string = "ms"
 
-	DefaultZabbixAddress string = "host=localhost user=zabbix sslmode=disable database=zabbix"
-	DefaultTableInterval int = 15
-	DefaultDaysPerBatch int = 15
-	DefaultOutputRowsPerBatch int = 100000
+	DefaultZabbixAddress      string = "host=localhost user=zabbix sslmode=disable database=zabbix"
+	DefaultTableInterval      int    = 15
+	DefaultDaysPerBatch       int    = 15
+	DefaultOutputRowsPerBatch int    = 100000
 )
 
 type TOMLConfig struct {
@@ -63,15 +63,15 @@ type zabbix struct {
 }
 
 type Table struct {
-	Name     string
-	Active   bool
-	Interval int
-	Startdate string
-	Daysperbatch int
+	Name               string
+	Active             bool
+	Interval           int
+	Startdate          string
+	Daysperbatch       int
 	Outputrowsperbatch int
 }
 type registry struct {
-	FileName string       
+	FileName string
 }
 type polling struct {
 	Interval        int
@@ -95,7 +95,6 @@ var fConfig = flag.String("config",
 	"influxdb-zabbix.conf",
 	"the configuration file in TOML format")
 
-
 func Parse(tomlConfig *TOMLConfig) error {
 	if _, err := toml.DecodeFile(*fConfig, &tomlConfig); err != nil {
 		return err
@@ -115,7 +114,7 @@ func Validate(tomlConfig *TOMLConfig) error {
 func (tomlConfig *TOMLConfig) validate() error {
 
 	fmterr := fmt.Errorf
-	
+
 	if tomlConfig.Registry.FileName == "" {
 		tomlConfig.Registry.FileName = DefaultRegistryFileName
 	}

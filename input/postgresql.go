@@ -1,20 +1,19 @@
 package input
 
-import (
-)
+import ()
 
-func pgSQL(tablename string) string{
+func pgSQL(tablename string) string {
 	switch tablename {
-		case "history":
-			return pgsqlHistory
-		case "history_uint":
-			return pgsqlHistoryUInt
-		case "trends":
-			return pgsqlTrends
-		case "trends_uint":
-			return pgsqlTrendsUInt
-		default:
-			panic("unrecognized tablename")
+	case "history":
+		return pgsqlHistory
+	case "history_uint":
+		return pgsqlHistoryUInt
+	case "trends":
+		return pgsqlTrends
+	case "trends_uint":
+		return pgsqlTrendsUInt
+	default:
+		panic("unrecognized tablename")
 	}
 }
 
@@ -47,6 +46,7 @@ replace(replace(CASE
 || ',value_max=' || CAST(tre.value_max as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char(14)) as INLINE
+,  CAST((tre.clock * 1000.) as char(14)) as clock
 FROM public.trends tre
 INNER JOIN public.items ite on ite.itemid = tre.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -85,6 +85,7 @@ replace(replace(CASE
 || ',value_max=' || CAST(tre.value_max as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char(14)) as INLINE
+,  CAST((tre.clock * 1000.) as char(14)) as clock
 FROM public.trends_uint tre
 INNER JOIN public.items ite on ite.itemid = tre.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -122,6 +123,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
 FROM public.history his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -159,6 +161,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
 FROM public.history_uint his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -168,4 +171,3 @@ WHERE grp.internal=0
    AND his.clock > ##STARTDATE##
    AND his.clock <= ##ENDDATE##;
 `
-

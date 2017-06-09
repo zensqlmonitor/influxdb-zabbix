@@ -26,8 +26,8 @@ var _ Loader = (*loader)(nil)
 func NewLoader(url, user, pass, inlinedata string) loader {
 	loa := loader{}
 	loa.url = url
-        loa.username = user
-        loa.password = pass
+	loa.username = user
+	loa.password = pass
 	loa.inlinedata = inlinedata
 	return loa
 }

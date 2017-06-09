@@ -3,10 +3,9 @@ package log
 import (
 	"fmt"
 	"strings"
-	
+
 	cfg "github.com/zensqlmonitor/influxdb-zabbix/config"
 )
-
 
 // Initialize logging
 func Init(config cfg.TOMLConfig) {

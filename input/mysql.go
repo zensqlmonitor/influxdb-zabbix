@@ -1,20 +1,19 @@
 package input
 
-import (
-)
+import ()
 
-func mySQL(tablename string) string{
+func mySQL(tablename string) string {
 	switch tablename {
-		case "history":
-			return mysqlHistory
-		case "history_uint":
-			return mysqlHistoryUInt
-		case "trends":
-			return mysqlTrends
-		case "trends_uint":
-			return mysqlTrendsUInt
-		default:
-			panic("unrecognized tablename")
+	case "history":
+		return mysqlHistory
+	case "history_uint":
+		return mysqlHistoryUInt
+	case "trends":
+		return mysqlTrends
+	case "trends_uint":
+		return mysqlTrendsUInt
+	default:
+		panic("unrecognized tablename")
 	}
 }
 
@@ -47,6 +46,7 @@ replace(replace(CASE
 || ',value_max=' || CAST(tre.value_max as char)
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char) as INLINE
+,  CAST((tre.clock * 1000.) as char) as clock
 FROM trends tre 
 INNER JOIN items ite on ite.itemid = tre.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
@@ -56,7 +56,6 @@ WHERE grp.internal=0
    AND tre.clock > ##STARTDATE##
    AND tre.clock <= ##ENDDATE##;
 `
-
 
 const mysqlTrendsUInt string = `SELECT 
 -- measurement
@@ -87,6 +86,7 @@ replace(replace(CASE
 || ',value_max=' || CAST(tre.value_max as char)
 -- timestamp (in ms)
 || ' ' || CAST((tre.clock * 1000.) as char) as INLINE
+,  CAST((tre.clock * 1000.) as char) as clock
 FROM trends tre 
 INNER JOIN items ite on ite.itemid = tre.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
@@ -124,6 +124,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char) as clock
 FROM history his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
@@ -161,6 +162,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE
+,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char) as clock
 FROM history_uint his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid

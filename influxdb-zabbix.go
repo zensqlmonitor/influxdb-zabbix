@@ -38,11 +38,11 @@ type Param struct {
 }
 
 type Input struct {
-	provider          string
-	address           string
-	tablename         string
-	interval          int
-	daysperbatch      int
+	provider     string
+	address      string
+	tablename    string
+	interval     int
+	daysperbatch int
 }
 
 type Output struct {
@@ -60,7 +60,6 @@ type InfluxDB struct {
 
 var mapTables = make(registry.MapTable)
 
-
 //
 // Gather data
 //
@@ -68,22 +67,22 @@ func (p *Param) gatherData() error {
 
 	//start watcher
 	startwatch := time.Now()
-		
+
 	// read registry, init if not exists
 	if err := registry.Read(&config, &mapTables); err != nil {
 		fmt.Println(err)
 		return err
 	}
-	
+
 	// set time
 	starttimereg := registry.GetValueFromKey(
-						mapTables, p.input.tablename)
+		mapTables, p.input.tablename)
 
 	// no start date configured ? return
 	if len(starttimereg) == 0 {
-		log.Fatal(1, 
-				"No start time defined for table %s", 
-				p.input.tablename)
+		log.Fatal(1,
+			"No start time defined for table %s",
+			p.input.tablename)
 		return nil
 	}
 
@@ -95,22 +94,26 @@ func (p *Param) gatherData() error {
 			return err
 		}
 	}
-	
-    // add days
+
+	// add days
 	var starttimestr string = strconv.FormatInt(startimerfc.Unix(), 10)
 	var endtimestr string = strconv.FormatInt(startimerfc.AddDate(0, 0, p.input.daysperbatch).Unix(), 10)
-
-	// <--  Extract 
+	
+	// first time, instantiated with the start time value stored in registry
+	var maxclock time.Time = startimerfc
+	
+	// <--  Extract
 	ext := input.NewExtracter(
-				p.input.provider,
-				p.input.address,
-				p.input.tablename,
-				starttimestr,
-				endtimestr)
+		p.input.provider,
+		p.input.address,
+		p.input.tablename,
+		starttimestr,
+		endtimestr)
 
 	var tlen int = len(p.input.tablename)
+    var infoLogs []string
 
-	log.Trace(
+	infoLogs = append(infoLogs, 
 		fmt.Sprintf(
 			"----------- | %s | [%v --> %v[",
 			helpers.RightPad(p.input.tablename, " ", 19-tlen),
@@ -123,10 +126,11 @@ func (p *Param) gatherData() error {
 	}
 
 	var rowcount int = len(ext.Result)
-	rows := make([]string, rowcount)
-	copy(rows, ext.Result)
+	if ext.Maxclock.IsZero() == false {
+		maxclock = ext.Maxclock
+	}
 	
-	log.Info(
+	infoLogs = append(infoLogs, 
 		fmt.Sprintf(
 			"<-- Extract | %s| %v rows | took %s",
 			helpers.RightPad(p.input.tablename, " ", 20-tlen),
@@ -135,15 +139,15 @@ func (p *Param) gatherData() error {
 
 	/// no row, save in registry
 	if rowcount == 0 {
-		log.Info(
+		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--> Load    | %s| No data",
 				helpers.RightPad(p.input.tablename, " ", 20-tlen)))
 
-		// Save registry 
+		// Save registry
 		var timetosave time.Time
 		if (startimerfc.AddDate(0, 0, p.input.daysperbatch)).After(time.Now()) {
-			timetosave = time.Now()
+			timetosave = maxclock
 		} else {
 			timetosave = startimerfc.AddDate(0, 0, p.input.daysperbatch)
 		}
@@ -151,13 +155,15 @@ func (p *Param) gatherData() error {
 		registry.Save(config, 
 			p.input.tablename, 
 			timetosave.Format(time.RFC3339))
-
-		log.Info(
+			
+		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--- Waiting | %s| %v sec ",
 				helpers.RightPad(p.input.tablename, " ", 20-len(p.input.tablename)),
 				p.input.interval))
-
+				
+    	print(infoLogs)
+	
 		return nil
 	}
 
@@ -166,9 +172,9 @@ func (p *Param) gatherData() error {
 	inlineData := ""
 
 	if rowcount <= p.output.outputrowsperbatch {
-	
-		inlineData = strings.Join(rows[:], "\n")
-		
+
+		inlineData = strings.Join(ext.Result[:], "\n")
+
 		loa := influx.NewLoader(
 			fmt.Sprintf(
 				"%s/write?db=%s&precision=%s",
@@ -180,19 +186,20 @@ func (p *Param) gatherData() error {
 			    inlineData)
 
 		err := loa.Load()
+		
 		if err != nil {
 			log.Error(1, "Error while loading data: %s", err)
 			return err
 		}
 
-		log.Info(
+		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--> Load    | %s| %v rows | took %s",
 				helpers.RightPad(p.input.tablename, " ", 20-tlen),
 				rowcount,
 				time.Since(startwatch)))
 
-	} else { // multiple batches
+	} else { // split result in multiple batches
 
 		var batches float64 = float64(rowcount) / float64(p.output.outputrowsperbatch)
 		var batchesCeiled float64 = math.Ceil(batches)
@@ -204,18 +211,18 @@ func (p *Param) gatherData() error {
 			if batchLoops == 1 {
 				minRange = 0
 			} else {
-				minRange = maxRange + 1
+				minRange = maxRange
 			}
 
 			maxRange = batchLoops * p.output.outputrowsperbatch
 			if maxRange >= rowcount {
-				maxRange = rowcount - 1
+				maxRange = rowcount 
 			}
 
 			// create slide
 			datapart := []string{}
-			for i := minRange; i <= maxRange; i++ {
-				datapart = append(datapart, rows[i])
+			for i := minRange; i < maxRange; i++ {
+				datapart = append(datapart, ext.Result[i])
 			}
 
 			inlineData = strings.Join(datapart[:], "\n")
@@ -227,9 +234,9 @@ func (p *Param) gatherData() error {
 					p.output.address,
 					p.output.database,
 					p.output.precision),
-					p.output.username,
-					p.output.password,
-					inlineData)
+				p.output.username,
+				p.output.password,
+				inlineData)
 
 			err := loa.Load()
 			if err != nil {
@@ -241,10 +248,11 @@ func (p *Param) gatherData() error {
 				p.input.tablename,
 				batchLoops,
 				batchesCeiled)
-				
+
 			tlen = len(prettyTableName)
 
-			log.Info(fmt.Sprintf("--> Load    | %s| %v rows | took %s",
+			infoLogs = append(infoLogs, 
+				fmt.Sprintf("--> Load    | %s| %v rows | took %s",
 				helpers.RightPad(prettyTableName, " ", 20-tlen),
 				len(datapart),
 				time.Since(startwatch)))
@@ -255,19 +263,34 @@ func (p *Param) gatherData() error {
 	}
 
 	// Save registry
+	var timetosave time.Time
+	if (startimerfc.AddDate(0, 0, p.input.daysperbatch)).After(time.Now()) {
+		timetosave = maxclock
+	} else {
+		timetosave = startimerfc.AddDate(0, 0, p.input.daysperbatch)
+	}
+	
 	registry.Save(config, 
 		p.input.tablename, 
-		startimerfc.AddDate(0, 0, p.input.daysperbatch).Format(time.RFC3339))
-	
-	
+		timetosave.Format(time.RFC3339))
+
 	tlen = len(p.input.tablename)
-	log.Info(fmt.Sprintf("--- Waiting | %s| %v sec ",
+	infoLogs = append(infoLogs, 
+		fmt.Sprintf("--- Waiting | %s| %v sec ",
 		helpers.RightPad(p.input.tablename, " ", 20-tlen),
 		p.input.interval))
 
-
+    print(infoLogs)
+	
 	return nil
 }
+
+func print(infoLogs []string) {
+	for i := 0; i < len(infoLogs); i++ {
+		log.Info(infoLogs[i])
+	}
+}
+
 
 //
 // Gather data loop
@@ -368,13 +391,13 @@ func main() {
 	readRegistry()
 	initLog()
 
-	// list of active tables
+	// set of active tables
 	log.Trace("--- Active tables:")
 	var tables = []*cfg.Table{}
 	for _, table := range config.Tables {
 		if table.Active {
 			var tlen int = len(table.Name)
-		
+
 			log.Trace(
 				fmt.Sprintf(
 					"----------- | %s | Each %v sec | Input days %v | Output %v",
@@ -387,17 +410,16 @@ func main() {
 		}
 	}
 
-	
 	log.Info("--- Start polling")
 
 	var provider string = (reflect.ValueOf(config.Zabbix).MapKeys())[0].String()
-	var address string = config.Zabbix[provider].Address;
+	var address string = config.Zabbix[provider].Address
 	log.Trace(fmt.Sprintf("--- Provider: %s", provider))
-	
+
 	influxdb := config.InfluxDB
 
 	for _, table := range tables {
-	
+
 		input := Input{
 			provider,
 			address,
