@@ -71,7 +71,7 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 
 - Configurable for each table:
   - interval: the polling interval
-  - daysperbatch : number of days to extract from zabbix backend per batch
+  - hoursperbatch : number of hours to extract from zabbix backend per batch 
   - outputrowsperbatch : to allow the destination load to be splitted in multiple batches
   
 ## License

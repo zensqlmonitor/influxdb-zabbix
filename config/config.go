@@ -36,7 +36,7 @@ const (
 
 	DefaultZabbixAddress      string = "host=localhost user=zabbix sslmode=disable database=zabbix"
 	DefaultTableInterval      int    = 15
-	DefaultDaysPerBatch       int    = 15
+	DefaultHoursPerBatch      int    = 320 // 15 days
 	DefaultOutputRowsPerBatch int    = 100000
 )
 
@@ -67,7 +67,7 @@ type Table struct {
 	Active             bool
 	Interval           int
 	Startdate          string
-	Daysperbatch       int
+	Hoursperbatch       int
 	Outputrowsperbatch int
 }
 type registry struct {
@@ -192,9 +192,12 @@ func (tomlConfig *TOMLConfig) validate() error {
 		return fmterr("Validation failed : You can only define one Zabbix provider.")
 	}
 
-	for dbprov, zabbix := range zabbixes {
+	for provider, zabbix := range zabbixes {
 		if zabbix.Address == "" {
-			return fmterr("Validation failed : You must at least define a Zabbix database address for provider %s.", dbprov)
+			return fmterr("Validation failed : You must at least define a Zabbix database address for provider %s.", provider)
+		}
+		if provider == "mysql" {
+			zabbix.Address += "?sql_mode='PIPES_AS_CONCAT'"
 		}
 	}
 
@@ -223,8 +226,8 @@ func (tomlConfig *TOMLConfig) validate() error {
 				return fmterr("Validation failed : Startdate for table %s is not well formatted.", tableName)
 			}
 		}
-		if table.Daysperbatch == 0 {
-			tomlConfig.Tables[tableName].Daysperbatch = DefaultDaysPerBatch
+		if table.Hoursperbatch == 0 {
+			tomlConfig.Tables[tableName].Hoursperbatch = DefaultHoursPerBatch
 		}
 		if table.Outputrowsperbatch == 0 {
 			tomlConfig.Tables[tableName].Outputrowsperbatch = DefaultOutputRowsPerBatch

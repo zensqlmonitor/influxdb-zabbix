@@ -47,7 +47,7 @@ func (input *Input) getSQL() string {
 		strings.Replace(
 			query,
 			"##STARTDATE##", input.Starttime, -1),
-		"##ENDDATE##", input.Endtime, -1)
+		    "##ENDDATE##", input.Endtime, -1)
 }
 
 func (input *Input) Extract() error {

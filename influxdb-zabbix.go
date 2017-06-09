@@ -42,7 +42,7 @@ type Input struct {
 	address      string
 	tablename    string
 	interval     int
-	daysperbatch int
+	hoursperbatch int
 }
 
 type Output struct {
@@ -65,6 +65,8 @@ var mapTables = make(registry.MapTable)
 //
 func (p *Param) gatherData() error {
 
+	 var infoLogs []string
+		
 	//start watcher
 	startwatch := time.Now()
 
@@ -97,7 +99,9 @@ func (p *Param) gatherData() error {
 
 	// add days
 	var starttimestr string = strconv.FormatInt(startimerfc.Unix(), 10)
-	var endtimestr string = strconv.FormatInt(startimerfc.AddDate(0, 0, p.input.daysperbatch).Unix(), 10)
+	//var endtimestr string = strconv.FormatInt(startimerfc.AddDate(0, 0, p.input.daysperbatch).Unix(), 10)
+	var endtimetmp time.Time = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
+	var endtimestr string = strconv.FormatInt(endtimetmp.Unix(), 10)
 	
 	// first time, instantiated with the start time value stored in registry
 	var maxclock time.Time = startimerfc
@@ -111,14 +115,13 @@ func (p *Param) gatherData() error {
 		endtimestr)
 
 	var tlen int = len(p.input.tablename)
-    var infoLogs []string
 
 	infoLogs = append(infoLogs, 
 		fmt.Sprintf(
 			"----------- | %s | [%v --> %v[",
 			helpers.RightPad(p.input.tablename, " ", 19-tlen),
-			startimerfc.Format("2006-01-02"),
-			(startimerfc.AddDate(0, 0, p.input.daysperbatch)).Format("2006-01-02")))
+			startimerfc.Format("2006-01-02 15:04"),
+			endtimetmp.Format("2006-01-02 15:04")))
 
 	if err := ext.Extract(); err != nil {
 		log.Error(1, "Error while executing script: %s", err)
@@ -146,10 +149,12 @@ func (p *Param) gatherData() error {
 
 		// Save registry
 		var timetosave time.Time
-		if (startimerfc.AddDate(0, 0, p.input.daysperbatch)).After(time.Now()) {
+		
+		// if enddate after the current time, we keep the last clock found in the last dataset
+		if (startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))).After(time.Now()) {
 			timetosave = maxclock
 		} else {
-			timetosave = startimerfc.AddDate(0, 0, p.input.daysperbatch)
+			timetosave = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
 		}
 		
 		registry.Save(config, 
@@ -264,10 +269,10 @@ func (p *Param) gatherData() error {
 
 	// Save registry
 	var timetosave time.Time
-	if (startimerfc.AddDate(0, 0, p.input.daysperbatch)).After(time.Now()) {
+	if (startimerfc.AddDate(0, 0, p.input.hoursperbatch)).After(time.Now()) {
 		timetosave = maxclock
 	} else {
-		timetosave = startimerfc.AddDate(0, 0, p.input.daysperbatch)
+		timetosave = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
 	}
 	
 	registry.Save(config, 
@@ -400,10 +405,10 @@ func main() {
 
 			log.Trace(
 				fmt.Sprintf(
-					"----------- | %s | Each %v sec | Input days %v | Output %v",
+					"----------- | %s | Each %v sec | Hours per batch %v | Output %v",
 					helpers.RightPad(table.Name, " ", 20-tlen),
 					table.Interval,
-					table.Daysperbatch,
+					table.Hoursperbatch,
 					table.Outputrowsperbatch))
 
 			tables = append(tables, table)
@@ -425,7 +430,7 @@ func main() {
 			address,
 			table.Name,
 			table.Interval,
-			table.Daysperbatch}
+			table.Hoursperbatch}
 
 		output := Output{
 			influxdb.Url,
