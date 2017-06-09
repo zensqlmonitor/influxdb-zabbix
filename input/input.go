@@ -2,10 +2,11 @@ package input
 
 import (
 	"database/sql"
-	"strconv"
 	"strings"
 	"time"
-
+	
+	helpers "github.com/zensqlmonitor/influxdb-zabbix/helpers"
+	
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
 )
@@ -90,7 +91,7 @@ func (input *Input) Extract() error {
 
 	// saved max clock from the result set
 	if len(clock) > 0 {
-		lastclock, err := msToTime(strings.Trim(clock, " "))
+		lastclock, err := helpers.MsToTime(strings.Trim(clock, " "))
 		if err != nil {
 			return err
 		}
@@ -98,19 +99,4 @@ func (input *Input) Extract() error {
 	}
 
 	return nil
-}
-
-// utils
-const (
-	millisPerSecond     = int64(time.Second / time.Millisecond)
-	nanosPerMillisecond = int64(time.Millisecond / time.Nanosecond)
-)
-
-func msToTime(ms string) (time.Time, error) {
-	msInt, err := strconv.ParseInt(ms, 10, 64)
-	if err != nil {
-		return time.Time{}, err
-	}
-	return time.Unix(msInt/millisPerSecond,
-		(msInt%millisPerSecond)*nanosPerMillisecond), nil
 }
