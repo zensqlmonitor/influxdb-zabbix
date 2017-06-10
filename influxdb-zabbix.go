@@ -38,10 +38,10 @@ type Param struct {
 }
 
 type Input struct {
-	provider     string
-	address      string
-	tablename    string
-	interval     int
+	provider      string
+	address       string
+	tablename     string
+	interval      int
 	hoursperbatch int
 }
 
@@ -60,15 +60,13 @@ type InfluxDB struct {
 
 var mapTables = make(registry.MapTable)
 
-
-
 //
 // Gather data
 //
 func (p *Param) gatherData() error {
 
-	 var infoLogs []string
-		
+	var infoLogs []string
+
 	//start watcher
 	startwatch := time.Now()
 
@@ -103,19 +101,17 @@ func (p *Param) gatherData() error {
 	var starttimestr string = strconv.FormatInt(startimerfc.Unix(), 10)
 	var endtimetmp time.Time = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
 	var endtimestr string = strconv.FormatInt(endtimetmp.Unix(), 10)
-	
-	
+
 	//
 	// <--  Extract
 	//
 	var tlen int = len(p.input.tablename)
-	infoLogs = append(infoLogs, 
+	infoLogs = append(infoLogs,
 		fmt.Sprintf(
 			"----------- | %s | [%v --> %v[",
 			helpers.RightPad(p.input.tablename, " ", 12-tlen),
 			startimerfc.Format("2006-01-02 15:04:00"),
 			endtimetmp.Format("2006-01-02 15:04:00")))
-
 
 	ext := input.NewExtracter(
 		p.input.provider,
@@ -136,8 +132,8 @@ func (p *Param) gatherData() error {
 	if ext.Maxclock.IsZero() == false {
 		maxclock = ext.Maxclock
 	}
-	
-	infoLogs = append(infoLogs, 
+
+	infoLogs = append(infoLogs,
 		fmt.Sprintf(
 			"<-- Extract | %s| %v rows | took %s",
 			helpers.RightPad(p.input.tablename, " ", 13-tlen),
@@ -147,27 +143,27 @@ func (p *Param) gatherData() error {
 	/// no row, break and save in registry
 	if rowcount == 0 {
 
-		infoLogs = append(infoLogs, 
+		infoLogs = append(infoLogs,
 			fmt.Sprintf(
 				"--> Load    | %s| No data",
 				helpers.RightPad(p.input.tablename, " ", 13-tlen)))
 
 		// Save in registry
 		saveMaxTime(p.input.tablename, startimerfc, maxclock, p.input.hoursperbatch)
-		
-		infoLogs = append(infoLogs, 
+
+		infoLogs = append(infoLogs,
 			fmt.Sprintf(
 				"--- Waiting | %s| %v sec ",
 				helpers.RightPad(p.input.tablename, " ", 13-len(p.input.tablename)),
 				p.input.interval))
-		
+
 		// print all logs
-    	print(infoLogs)
-	
+		print(infoLogs)
+
 		return nil
 	}
-	
-    //
+
+	//
 	// --> Load
 	//
 	startwatch = time.Now()
@@ -183,16 +179,16 @@ func (p *Param) gatherData() error {
 				p.output.address,
 				p.output.database,
 				p.output.precision),
-			    p.output.username,
-			    p.output.password,
-			    inlineData)
+			p.output.username,
+			p.output.password,
+			inlineData)
 
 		if err := loa.Load(); err != nil {
 			log.Error(1, "Error while loading data for %s. %s", p.input.tablename, err)
 			return err
 		}
 
-		infoLogs = append(infoLogs, 
+		infoLogs = append(infoLogs,
 			fmt.Sprintf(
 				"--> Load    | %s| %v rows | took %s",
 				helpers.RightPad(p.input.tablename, " ", 13-tlen),
@@ -216,7 +212,7 @@ func (p *Param) gatherData() error {
 
 			maxRange = batchLoops * p.output.outputrowsperbatch
 			if maxRange >= rowcount {
-				maxRange = rowcount 
+				maxRange = rowcount
 			}
 
 			// create slide
@@ -251,11 +247,11 @@ func (p *Param) gatherData() error {
 
 			tlen = len(tableBatchName)
 
-			infoLogs = append(infoLogs, 
+			infoLogs = append(infoLogs,
 				fmt.Sprintf("--> Load    | %s| %v rows | took %s",
-				helpers.RightPad(tableBatchName, " ", 13-tlen),
-				len(datapart),
-				time.Since(startwatch)))
+					helpers.RightPad(tableBatchName, " ", 13-tlen),
+					len(datapart),
+					time.Since(startwatch)))
 
 			batchLoops += 1
 			batches -= 1
@@ -267,14 +263,14 @@ func (p *Param) gatherData() error {
 	saveMaxTime(p.input.tablename, startimerfc, maxclock, p.input.hoursperbatch)
 
 	tlen = len(p.input.tablename)
-	infoLogs = append(infoLogs, 
+	infoLogs = append(infoLogs,
 		fmt.Sprintf("--- Waiting | %s| %v sec ",
-		helpers.RightPad(p.input.tablename, " ", 13-tlen),
-		p.input.interval))
+			helpers.RightPad(p.input.tablename, " ", 13-tlen),
+			p.input.interval))
 
-    // print all logs
-    print(infoLogs)
-	
+	// print all logs
+	print(infoLogs)
+
 	return nil
 }
 
@@ -290,22 +286,21 @@ func print(infoLogs []string) {
 //
 // Save max time (last clock found in dataset)
 //
-func saveMaxTime(tablename string, starttime time.Time, maxtime time.Time, duration int ) {
+func saveMaxTime(tablename string, starttime time.Time, maxtime time.Time, duration int) {
 
 	var timetosave time.Time
-	
+
 	// if enddate after the current time, we keep the last date found in the table dataset
 	if (starttime.Add(time.Hour * time.Duration(duration))).After(time.Now()) {
 		timetosave = maxtime
 	} else {
 		timetosave = starttime.Add(time.Hour * time.Duration(duration))
 	}
-	
-	registry.Save(config, 
-		tablename, 
+
+	registry.Save(config,
+		tablename,
 		timetosave.Format(time.RFC3339))
 }
-
 
 //
 // Gather data loop
