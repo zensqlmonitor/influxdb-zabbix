@@ -60,6 +60,8 @@ type InfluxDB struct {
 
 var mapTables = make(registry.MapTable)
 
+
+
 //
 // Gather data
 //
@@ -97,16 +99,24 @@ func (p *Param) gatherData() error {
 		}
 	}
 
-	// add days
+	// add duration
 	var starttimestr string = strconv.FormatInt(startimerfc.Unix(), 10)
-	//var endtimestr string = strconv.FormatInt(startimerfc.AddDate(0, 0, p.input.daysperbatch).Unix(), 10)
 	var endtimetmp time.Time = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
 	var endtimestr string = strconv.FormatInt(endtimetmp.Unix(), 10)
 	
-	// first time, instantiated with the start time value stored in registry
-	var maxclock time.Time = startimerfc
 	
+	//
 	// <--  Extract
+	//
+	var tlen int = len(p.input.tablename)
+	infoLogs = append(infoLogs, 
+		fmt.Sprintf(
+			"----------- | %s | [%v --> %v[",
+			helpers.RightPad(p.input.tablename, " ", 12-tlen),
+			startimerfc.Format("2006-01-02 15:04:00"),
+			endtimetmp.Format("2006-01-02 15:04:00")))
+
+
 	ext := input.NewExtracter(
 		p.input.provider,
 		p.input.address,
@@ -114,21 +124,15 @@ func (p *Param) gatherData() error {
 		starttimestr,
 		endtimestr)
 
-	var tlen int = len(p.input.tablename)
-
-	infoLogs = append(infoLogs, 
-		fmt.Sprintf(
-			"----------- | %s | [%v --> %v[",
-			helpers.RightPad(p.input.tablename, " ", 19-tlen),
-			startimerfc.Format("2006-01-02 15:04"),
-			endtimetmp.Format("2006-01-02 15:04")))
-
 	if err := ext.Extract(); err != nil {
 		log.Error(1, "Error while executing script: %s", err)
 		return err
 	}
 
+	// count rows
 	var rowcount int = len(ext.Result)
+
+	var maxclock time.Time = startimerfc
 	if ext.Maxclock.IsZero() == false {
 		maxclock = ext.Maxclock
 	}
@@ -136,43 +140,36 @@ func (p *Param) gatherData() error {
 	infoLogs = append(infoLogs, 
 		fmt.Sprintf(
 			"<-- Extract | %s| %v rows | took %s",
-			helpers.RightPad(p.input.tablename, " ", 20-tlen),
+			helpers.RightPad(p.input.tablename, " ", 13-tlen),
 			rowcount,
 			time.Since(startwatch)))
 
-	/// no row, save in registry
+	/// no row, break and save in registry
 	if rowcount == 0 {
+
 		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--> Load    | %s| No data",
-				helpers.RightPad(p.input.tablename, " ", 20-tlen)))
+				helpers.RightPad(p.input.tablename, " ", 13-tlen)))
 
-		// Save registry
-		var timetosave time.Time
+		// Save in registry
+		saveMaxTime(p.input.tablename, startimerfc, maxclock, p.input.hoursperbatch)
 		
-		// if enddate after the current time, we keep the last clock found in the last dataset
-		if (startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))).After(time.Now()) {
-			timetosave = maxclock
-		} else {
-			timetosave = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
-		}
-		
-		registry.Save(config, 
-			p.input.tablename, 
-			timetosave.Format(time.RFC3339))
-			
 		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--- Waiting | %s| %v sec ",
-				helpers.RightPad(p.input.tablename, " ", 20-len(p.input.tablename)),
+				helpers.RightPad(p.input.tablename, " ", 13-len(p.input.tablename)),
 				p.input.interval))
-				
+		
+		// print all logs
     	print(infoLogs)
 	
 		return nil
 	}
-
+	
+    //
 	// --> Load
+	//
 	startwatch = time.Now()
 	inlineData := ""
 
@@ -190,21 +187,19 @@ func (p *Param) gatherData() error {
 			    p.output.password,
 			    inlineData)
 
-		err := loa.Load()
-		
-		if err != nil {
-			log.Error(1, "Error while loading data: %s", err)
+		if err := loa.Load(); err != nil {
+			log.Error(1, "Error while loading data for %s. %s", p.input.tablename, err)
 			return err
 		}
 
 		infoLogs = append(infoLogs, 
 			fmt.Sprintf(
 				"--> Load    | %s| %v rows | took %s",
-				helpers.RightPad(p.input.tablename, " ", 20-tlen),
+				helpers.RightPad(p.input.tablename, " ", 13-tlen),
 				rowcount,
 				time.Since(startwatch)))
 
-	} else { // split result in multiple batches
+	} else { // else split result in multiple batches
 
 		var batches float64 = float64(rowcount) / float64(p.output.outputrowsperbatch)
 		var batchesCeiled float64 = math.Ceil(batches)
@@ -243,57 +238,72 @@ func (p *Param) gatherData() error {
 				p.output.password,
 				inlineData)
 
-			err := loa.Load()
-			if err != nil {
-				log.Error(1, "Error while loading data: %s", err)
+			if err := loa.Load(); err != nil {
+				log.Error(1, "Error while loading data for %s. %s", p.input.tablename, err)
 				return err
 			}
 
-			prettyTableName := fmt.Sprintf("%s (%v/%v)",
+			// log
+			tableBatchName := fmt.Sprintf("%s (%v/%v)",
 				p.input.tablename,
 				batchLoops,
 				batchesCeiled)
 
-			tlen = len(prettyTableName)
+			tlen = len(tableBatchName)
 
 			infoLogs = append(infoLogs, 
 				fmt.Sprintf("--> Load    | %s| %v rows | took %s",
-				helpers.RightPad(prettyTableName, " ", 20-tlen),
+				helpers.RightPad(tableBatchName, " ", 13-tlen),
 				len(datapart),
 				time.Since(startwatch)))
 
 			batchLoops += 1
 			batches -= 1
-		}
+
+		} // end while
 	}
 
-	// Save registry
-	var timetosave time.Time
-	if (startimerfc.AddDate(0, 0, p.input.hoursperbatch)).After(time.Now()) {
-		timetosave = maxclock
-	} else {
-		timetosave = startimerfc.Add(time.Hour * time.Duration(p.input.hoursperbatch))
-	}
-	
-	registry.Save(config, 
-		p.input.tablename, 
-		timetosave.Format(time.RFC3339))
+	// Save in registry
+	saveMaxTime(p.input.tablename, startimerfc, maxclock, p.input.hoursperbatch)
 
 	tlen = len(p.input.tablename)
 	infoLogs = append(infoLogs, 
 		fmt.Sprintf("--- Waiting | %s| %v sec ",
-		helpers.RightPad(p.input.tablename, " ", 20-tlen),
+		helpers.RightPad(p.input.tablename, " ", 13-tlen),
 		p.input.interval))
 
+    // print all logs
     print(infoLogs)
 	
 	return nil
 }
 
+//
+// Print all messages
+//
 func print(infoLogs []string) {
 	for i := 0; i < len(infoLogs); i++ {
 		log.Info(infoLogs[i])
 	}
+}
+
+//
+// Save max time (last clock found in dataset)
+//
+func saveMaxTime(tablename string, starttime time.Time, maxtime time.Time, duration int ) {
+
+	var timetosave time.Time
+	
+	// if enddate after the current time, we keep the last date found in the table dataset
+	if (starttime.Add(time.Hour * time.Duration(duration))).After(time.Now()) {
+		timetosave = maxtime
+	} else {
+		timetosave = starttime.Add(time.Hour * time.Duration(duration))
+	}
+	
+	registry.Save(config, 
+		tablename, 
+		timetosave.Format(time.RFC3339))
 }
 
 
@@ -405,8 +415,8 @@ func main() {
 
 			log.Trace(
 				fmt.Sprintf(
-					"----------- | %s | Each %v sec | Hours per batch %v | Output %v",
-					helpers.RightPad(table.Name, " ", 20-tlen),
+					"----------- | %s | Each %v sec | %v hours per batch | Output by %v",
+					helpers.RightPad(table.Name, " ", 12-tlen),
 					table.Interval,
 					table.Hoursperbatch,
 					table.Outputrowsperbatch))
