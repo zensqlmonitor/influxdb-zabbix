@@ -71,9 +71,6 @@ func (p *Param) gatherData() error {
 	var currTable string = p.input.tablename
 	var currTableForLog string = helpers.RightPad(currTable, " ", 12-len(currTable))
 
-	//start watcher
-	startwatch := time.Now()
-
 	// read registry
 	if err := registry.Read(&config, &mapTables); err != nil {
 		fmt.Println(err)
@@ -104,6 +101,8 @@ func (p *Param) gatherData() error {
 			startimerfc.Format("2006-01-02 15:04:00"),
 			endtimetmp.Format("2006-01-02 15:04:00")))
 
+	//start watcher
+	startwatch := time.Now()
 	ext := input.NewExtracter(
 		p.input.provider,
 		p.input.address,
@@ -401,7 +400,6 @@ func main() {
 				durationh = fmt.Sprintf("%v hours per batch", duration.Hours())
 			}
 
-
 			log.Trace(
 				fmt.Sprintf(
 					"----------- | %s | Each %v sec | %s | Output by %v",
@@ -421,7 +419,7 @@ func main() {
 	log.Trace(fmt.Sprintf("--- Provider: %s", provider))
 
 	influxdb := config.InfluxDB
-
+	
 	for _, table := range tables {
 
 		input := Input{

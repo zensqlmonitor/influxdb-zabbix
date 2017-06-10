@@ -58,9 +58,9 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 - Pure Go Postgres driver for database/sql (https://github.com/lib/pq/)
 - Pure Go MySQL driver for database/sql (https://github.com/go-sql-driver/mysql/)
 
-## Configuration
+## Configuration: influxdb-zabbix.conf
 
-- PostgreSQL and MariaDB/MySQL supported
+- PostgreSQL and MariaDB/MySQL supported.
 
 - Tables that can be replicated are:
   - history
@@ -69,11 +69,11 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
   - trends_uint
 - Tables like history_log, _text and _str are not replicated.
 
-- Configurable for each table:
-  - interval: the polling interval
-  - hoursperbatch : number of hours to extract from zabbix backend per batch 
-  - outputrowsperbatch : to allow the destination load to be splitted in multiple batches
-  
+- Configurable at table-level:
+  - interval: polling interval, minimum of 15 sec
+  - hours per batch : number of hours/batch to extract from zabbix backend 
+  - output rows per batch :  allow the destination load to be splitted in multiple batches
+ 
 ## License
 
 MIT-LICENSE. See LICENSE file provided in the repository for details
