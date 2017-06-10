@@ -123,7 +123,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
-,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
+,  CAST((his.clock * 1000.) as char(14)) as clock
 FROM public.history his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid
@@ -161,7 +161,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
-,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as clock
+,  CAST((his.clock * 1000.) as char(14)) as clock
 FROM public.history_uint his
 INNER JOIN public.items ite on ite.itemid = his.itemid
 INNER JOIN public.hosts hos on hos.hostid = ite.hostid

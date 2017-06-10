@@ -124,7 +124,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE
-,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char) as clock
+,  CAST((his.clock * 1000.) as char) as clock
 FROM history his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
@@ -162,7 +162,7 @@ replace(replace(CASE
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE
-,  CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char) as clock
+,  CAST((his.clock * 1000.) as char) as clock
 FROM history_uint his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
