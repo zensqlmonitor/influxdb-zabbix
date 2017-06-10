@@ -22,6 +22,8 @@ import (
 	registry "github.com/zensqlmonitor/influxdb-zabbix/reg"
 )
 
+var m runtime.MemStats
+
 var exitChan = make(chan int)
 
 var wg sync.WaitGroup
@@ -242,6 +244,13 @@ func (p *Param) gatherData() error {
 			currTableForLog,
 			p.input.interval))
 
+	runtime.ReadMemStats(&m)
+	log.Trace(fmt.Sprintf("--- Memory usage: Alloc = %s | TotalAlloc = %s | Sys = %s | NumGC = %v", 
+			helpers.IBytes(m.Alloc / 1024), 
+			helpers.IBytes(m.TotalAlloc / 1024), 
+			helpers.IBytes(m.Sys / 1024), 
+			m.NumGC))
+				
 	// print all log messages
 	print(infoLogs)
 
