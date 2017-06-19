@@ -1,7 +1,7 @@
 # influxdb-zabbix
 Gather data from Zabbix back-end and load to InfluxDB in near real-time for enhanced performance and easier usage with Grafana.
 
-As InfluxDB provides an excellent compression rate (in our case: 7x), this project could be used also to archive Zabbix backend.
+As InfluxDB provides an excellent compression rate (in our case: 7x), this project could be used also to archive Zabbix data.
 
 ## Getting Started
 
