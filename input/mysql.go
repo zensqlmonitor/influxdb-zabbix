@@ -40,7 +40,7 @@ replace(replace(CASE
 || ',applications=' || ifnull(replace(replace((SELECT GROUP_CONCAT(app.name, ' ')
     FROM items_applications iap
     INNER JOIN applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'N.A.')
 || ' value_min=' || CAST(tre.value_min as char)
 || ',value_avg=' || CAST(tre.value_avg as char)
 || ',value_max=' || CAST(tre.value_max as char)
@@ -80,7 +80,7 @@ replace(replace(CASE
 || ',applications=' || ifnull(replace(replace((SELECT GROUP_CONCAT(app.name, ' ')
     FROM items_applications iap
     INNER JOIN applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'N.A.')
 || ' value_min=' || CAST(tre.value_min as char)
 || ',value_avg=' || CAST(tre.value_avg as char)
 || ',value_max=' || CAST(tre.value_max as char)
@@ -120,7 +120,7 @@ replace(replace(CASE
 || ',applications=' || ifnull(replace(replace((SELECT GROUP_CONCAT(app.name, ' ')
     FROM items_applications iap
     INNER JOIN applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'N.A.')
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE
@@ -158,7 +158,7 @@ replace(replace(CASE
 || ',applications=' || ifnull(replace(replace((SELECT GROUP_CONCAT(app.name, ' ')
     FROM items_applications iap
     INNER JOIN applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\\ '), ',', ''), 'N.A.')
 || ' value=' || CAST(his.value as char)
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) as char) as INLINE

@@ -40,7 +40,7 @@ replace(replace(CASE
 || ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'N.A.')
 || ' value_min=' || CAST(tre.value_min as varchar(32))
 || ',value_avg=' || CAST(tre.value_avg as varchar(32))
 || ',value_max=' || CAST(tre.value_max as varchar(32))
@@ -79,7 +79,7 @@ replace(replace(CASE
 || ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'N.A.')
 || ' value_min=' || CAST(tre.value_min as varchar(32))
 || ',value_avg=' || CAST(tre.value_avg as varchar(32))
 || ',value_max=' || CAST(tre.value_max as varchar(32))
@@ -119,7 +119,7 @@ replace(replace(CASE
 || ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'N.A.')
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
@@ -157,7 +157,7 @@ replace(replace(CASE
 || ',applications=' || coalesce(replace((SELECT string_agg(app.name, ' | ')
     FROM public.items_applications iap
     INNER JOIN public.applications app on app.applicationid = iap.applicationid
-    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'No application')
+    WHERE iap.itemid = ite.itemid), ' ', '\ '), 'N.A.')
 || ' value=' || CAST(his.value as varchar(32))
 -- timestamp (in ms)
 || ' ' || CAST((his.clock * 1000.) + round(his.ns / 1000000., 0) as char(14)) as INLINE
