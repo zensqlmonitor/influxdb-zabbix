@@ -29,6 +29,25 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
 	```
 	
+	Create indexes:
+	```SQL 
+	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
+		ON public.history USING btree (clock)
+		TABLESPACE zabbixindex;
+
+	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
+		ON public.history_uint USING btree (clock)
+		TABLESPACE zabbixindex;
+
+	CREATE INDEX idx_trends_clock_itemid
+		ON public.trends USING btree (clock)
+		TABLESPACE zabbixindex;
+
+	CREATE INDEX idx_trends_uint_clock_itemid
+		ON public.trends_uint USING btree (clock)
+		TABLESPACE zabbixindex;
+	```	
+	
 - MariaDB / MySQL:
 
 	Create user:
@@ -45,7 +64,25 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
  	flush privileges;
 	```
 
+	Create indexes:
+	```SQL 
+	CREATE UNIQUE INDEX idx_history_clock_ns_itemid
+		ON history (clock) USING btree;
 
+	CREATE UNIQUE INDEX idx_history_uint_clock_ns_itemid
+		ON history_uint (clock) USING btree;
+
+	CREATE INDEX idx_trends_clock_itemid
+		ON trends (clock) USING btree;
+
+	CREATE INDEX idx_trends_uint_clock_itemid
+		ON trends_uint (clock) USING btree;
+	```
+	
+	NB:
+	For trends_* tables we can use pt-online-schema-change for online index create without lock, but for history_* tables we can
+	only use create index, because primary key for these tables does not exist.
+	
 ### How to use GO code
 
 - Run in background: ``` go run influxdb-zabbix.go & ```
