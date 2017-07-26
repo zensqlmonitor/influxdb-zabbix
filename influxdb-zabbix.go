@@ -74,7 +74,7 @@ func (p *Param) gatherData() error {
 	// read registry
 	if err := registry.Read(&config, &mapTables); err != nil {
 		fmt.Println(err)
-		return err
+		//return err
 	}
 
 	// set times
