@@ -89,6 +89,9 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 - Build in the current directory: ``` go build influxdb-zabbix.go ```
 - Install in $GOPATH/bin: ``` go install influxdb-zabbix.go ```
 
+### Goodies
+Have a look to the scripts folder
+
 ### Dependencies
 - Go 1.7+
 - TOML parser (https://github.com/BurntSushi/toml)
