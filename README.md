@@ -27,12 +27,12 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	```SQL 
 	GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
 	GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.applications TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.items TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.hosts TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.hosts_groups TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.hstgrp TO influxdb_zabbix;
-	GRANT SELECT ON zabbix.items_applications TO influxdb_zabbix;
+	GRANT SELECT ON public.applications TO influxdb_zabbix;
+	GRANT SELECT ON public.items TO influxdb_zabbix;
+	GRANT SELECT ON public.hosts TO influxdb_zabbix;
+	GRANT SELECT ON public.hosts_groups TO influxdb_zabbix;
+	GRANT SELECT ON public.hstgrp TO influxdb_zabbix;
+	GRANT SELECT ON public.items_applications TO influxdb_zabbix;
 	```
 	
 	Create indexes:
