@@ -27,6 +27,12 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	```SQL 
 	GRANT SELECT ON public.history, public.history_uint TO influxdb_zabbix;
 	GRANT SELECT ON public.trends, public.trends_uint TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.applications TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.items TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.hosts TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.hosts_groups TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.hstgrp TO influxdb_zabbix;
+	GRANT SELECT ON zabbix.items_applications TO influxdb_zabbix;
 	```
 	
 	Create indexes:
@@ -61,6 +67,13 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 	GRANT SELECT ON zabbix.trends_uint TO influxdb_zabbix@localhost;
 	GRANT SELECT ON zabbix.history TO influxdb_zabbix@localhost;
 	GRANT SELECT ON zabbix.history_uint TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.applications TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.items TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.hosts TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.hosts_groups TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.hstgrp TO influxdb_zabbix@localhost;
+	GRANT SELECT ON zabbix.items_applications TO influxdb_zabbix@localhost;
+	
  	flush privileges;
 	```
 
