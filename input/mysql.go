@@ -51,7 +51,7 @@ FROM trends tre
 INNER JOIN items ite on ite.itemid = tre.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
 INNER JOIN hosts_groups hg on hg.hostid = hos.hostid
-INNER JOIN groups grp on grp.groupid = hg.groupid
+INNER JOIN hstgrp grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND tre.clock > ##STARTDATE##
    AND tre.clock <= ##ENDDATE##;
@@ -91,7 +91,7 @@ FROM trends tre
 INNER JOIN items ite on ite.itemid = tre.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
 INNER JOIN hosts_groups hg on hg.hostid = hos.hostid
-INNER JOIN groups grp on grp.groupid = hg.groupid
+INNER JOIN hstgrp grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND tre.clock > ##STARTDATE##
    AND tre.clock <= ##ENDDATE##;
@@ -129,7 +129,7 @@ FROM history his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
 INNER JOIN hosts_groups hg on hg.hostid = hos.hostid
-INNER JOIN groups grp on grp.groupid = hg.groupid
+INNER JOIN hstgrp grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND his.clock > ##STARTDATE##
    AND his.clock <= ##ENDDATE##;
@@ -167,7 +167,7 @@ FROM history_uint his
 INNER JOIN items ite on ite.itemid = his.itemid
 INNER JOIN hosts hos on hos.hostid = ite.hostid
 INNER JOIN hosts_groups hg on hg.hostid = hos.hostid
-INNER JOIN groups grp on grp.groupid = hg.groupid
+INNER JOIN hstgrp grp on grp.groupid = hg.groupid
 WHERE grp.internal=0
    AND his.clock > ##STARTDATE##
    AND his.clock <= ##ENDDATE##;
