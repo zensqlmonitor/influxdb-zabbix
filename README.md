@@ -6,8 +6,8 @@ As InfluxDB provides an excellent compression rate (in our case: 7x), this proje
 ## Getting Started
 
 - InfluxDB: 
-	- [Install InfluxDB](https://docs.influxdata.com/influxdb/v1.1/introduction/installation/)
-	- [Create a database with a retention period ](https://docs.influxdata.com/influxdb/v1.1/introduction/getting_started/) <br />
+	- [Install InfluxDB](https://docs.influxdata.com/influxdb/latest/introduction/installation/)
+	- [Create a database with a retention period ](https://docs.influxdata.com/influxdb/latest/introduction/getting_started/) <br />
 - Grafana:
 	- [Install Grafana](http://docs.grafana.org/installation/)
 	- [Using InfluxDB in Grafana](http://docs.grafana.org/features/datasources/influxdb/)
