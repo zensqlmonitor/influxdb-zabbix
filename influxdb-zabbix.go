@@ -273,18 +273,9 @@ func print(infoLogs []string) {
 //
 func saveMaxTime(tablename string, starttime time.Time, maxtime time.Time, duration int) {
 
-	var timetosave time.Time
-
-	// if maxtime is greater than now, keep the maxclock returned 
-	if (starttime.Add(time.Hour * time.Duration(duration))).After(time.Now()) {
-		timetosave = maxtime
-	} else {
-		timetosave = starttime.Add(time.Hour * time.Duration(duration))
-	}
-
 	registry.Save(config,
 		tablename,
-		timetosave.Format(time.RFC3339))
+		maxtime.Format(time.RFC3339))
 }
 
 //
